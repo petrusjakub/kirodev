@@ -1,0 +1,21 @@
+{
+  "project_type": "Python script generating Excel xlsx files from PDF data",
+  "language": "Python",
+  "build_system": "None - single script execution",
+  "test_framework": "None - manual verification by running the script",
+  "build_command": "python3 generate_excel.py",
+  "test_command": "python3 generate_excel.py && python3 -c \"import zipfile; z=zipfile.ZipFile('Kalkulator_Premi_MiUHC.xlsx'); print(z.namelist()); z.close()\"",
+  "verification_instructions": "Run generate_excel.py and verify the output xlsx has correct structure (4 sheets, proper data, working formulas)",
+  "snapshot_or_generated_files": "Kalkulator_Premi_MiUHC.xlsx - generated output file",
+  "setup_instructions": "No setup needed - Python standard library only",
+  "environment_constraints": "INTEGRATIONS_ONLY network mode - no external packages can be installed. Must use only Python standard library (zipfile, zlib, re, os). No openpyxl, xlsxwriter, or any third-party library.",
+  "contribution_requirements": "N/A",
+  "key_patterns": "The existing generate_excel.py uses a custom XlsxWriter class that builds xlsx from raw XML + zipfile. The reference file kalkulator_MIUHC.xlsx contains the exact XML structure to replicate. PDF data is extracted using zlib decompression of FlateDecode streams + regex.",
+  "relevant_files": [
+    "generate_excel.py",
+    "kalkulator_MIUHC.xlsx",
+    "B. Tabel Premi Syariah 2024 - Miuhc Versi Quick PDF (3).pdf",
+    "B. Tabel Premi Miuhc Versi Quick PDF Per Sep 2025 (3).pdf"
+  ],
+  "directory_structure": "All files in /projects/sandbox/kirodev/ - flat structure with PDFs, xlsx reference, and Python script"
+}
