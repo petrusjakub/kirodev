@@ -1,0 +1,52 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Completely rewrite generate_excel.py to produce an Excel file with lookup functionality. The Excel should have input cells for Gender and Age at the top of each sheet, with INDEX/MATCH formulas that display the relevant premium data based on the selected inputs. Data tables for all ages/genders should be placed below (starting around row 30+) to support the formulas. The XlsxWriter class must be extended to support formula cells, numeric cells, data validation dropdowns, and merged cells.",
+  "status": "in_progress",
+  "steps": [
+    "STEP 1 - Fix header text: Change HEADER_TEXT from 'PETRUS PARTNER MANULIFE 087781896087' to 'PETRUS JAKUB MANULIFE 087781896087'. The WhatsApp link stays the same (https://wa.me/6287781896087).",
+
+    "STEP 2 - Extend XlsxWriter to support formula cells: Currently _build_sheet() only outputs cells as type='s' (shared string). Add support for: (a) Formula cells: no 't' attribute, content is <f>FORMULA</f><v>0</v>. (b) Number cells: no 't' attribute, content is <v>NUMBER</v>. (c) Inline string cells: t='inlineStr', content is <is><t>TEXT</t></is>. The cell tuple format should be extended - suggest using a dict or tuple like (value, style_id, cell_type) where cell_type is 'string', 'number', 'formula'.",
+
+    "STEP 3 - Add data validation support to XlsxWriter: Add a method to define data validation (dropdown lists) for specific cells. In the sheet XML, this goes inside <dataValidations><dataValidation type='list' sqref='CELL_REF'><formula1>\"Option1,Option2\"</formula1></dataValidation></dataValidations> placed after </sheetData> but before </worksheet>. This is needed for the Gender dropdown (Pria,Wanita) and optionally Age input.",
+
+    "STEP 4 - Add merged cells support to XlsxWriter: Add ability to merge cells for the header row. In sheet XML: <mergeCells><mergeCell ref='A1:I1'/></mergeCells> placed after sheetData.",
+
+    "STEP 5 - Redesign sheet layout with lookup interface: Each sheet (Konvensional and Syariah) should have this layout at the top:\n- Row 1: Header 'PETRUS JAKUB MANULIFE 087781896087' merged across columns A-I, with WhatsApp hyperlink, bold green text\n- Row 2: Title 'Tabel Premi MiUltimate HealthCare (Konvensional/Syariah)'\n- Row 3: Empty\n- Row 4: Label 'Jenis Kelamin:' in A4, Input cell B4 with data validation dropdown (Pria,Wanita)\n- Row 5: Label 'Usia:' in A5, Input cell B5 (number, 0-85)\n- Row 6: Empty\n- Row 7: Section header 'Manfaat Perawatan Rumah Sakit' (green background)\n- Row 8: Plan names as column headers (B8:I8 for regular plans)\n- Row 9: INDEX/MATCH formulas that look up premium values based on Gender+Age inputs from the data table below\n- Row 10: Smart plan names as column headers\n- Row 11: INDEX/MATCH formulas for smart plan values\n- Row 12: Empty\n- Row 13: Section header 'Manfaat Rawat Jalan' (green background)\n- Row 14: Plan names\n- Row 15: INDEX/MATCH formulas for outpatient values\n- Row 16: Smart plan names\n- Row 17: INDEX/MATCH formulas for smart outpatient values\n- (For Syariah only) Row 18+: Section header 'Manfaat Perawatan Gigi' with similar formula rows\n- Then blank rows before the data tables start",
+
+    "STEP 6 - Build data tables for lookup: Starting around row 25 (or later), create structured data tables that the formulas can reference. The data table layout for each benefit type should be:\n- Column A: combined key like 'Pria_0', 'Pria_1', ... 'Wanita_0', 'Wanita_1', etc. (172 rows: 86 ages x 2 genders)\n- Columns B-I: premium values for each plan (8 columns for regular, or 7 for smart konv, or 5 for smart syariah)\nCreate separate data table blocks for: (1) Hospital Regular, (2) Hospital Smart, (3) Outpatient Regular, (4) Outpatient Smart. For Syariah also: (5) Dental Regular, (6) Dental Smart.\nEach table block needs a header row with 'Key' and plan names.\nThe key format should be constructed so INDEX/MATCH can find it: e.g., B4&'_'&B5 creates 'Pria_25' which matches the key column.",
+
+    "STEP 7 - Write INDEX/MATCH formulas: For each result cell in the lookup area (rows 9, 11, 15, 17, etc.), write an INDEX/MATCH formula. The formula pattern should be:\n=INDEX(DataRange,MATCH(B$4&\"_\"&B$5,KeyRange,0),ColumnNumber)\nWhere DataRange is the block of premium values, KeyRange is the key column for that block, and ColumnNumber corresponds to the plan column.\nAlternatively, use a simpler approach: =INDEX(DataColumn,MATCH(B$4&\"_\"&B$5,KeyRange,0))\nwhere each plan gets its own INDEX/MATCH referencing the specific column in the data table.\nIMPORTANT: Excel formulas use the sheet-local cell references. Since the data tables are on the same sheet, no sheet prefix is needed.",
+
+    "STEP 8 - Handle the Sapphire column correctly: Konvensional has 8 regular plans (including Sapphire) and 7 smart plans. Syariah has 8 regular plans (including Sapphire) and 5 smart plans. The result display area must show the correct number of columns for each row.",
+
+    "STEP 9 - Add number formatting: Premium values in the data tables should be stored as actual numbers (not comma-formatted strings). Add a number format in styles.xml that displays numbers with comma thousands separator (numFmtId 3 or a custom format '#,##0'). The formula result cells should also use this format so the looked-up values display with commas.",
+
+    "STEP 10 - Parse premium values as integers: Currently the parser stores values like '47,658,100' as strings. Convert these to integers (47658100) when building the data tables so they are stored as numeric cells. The number format style will handle display formatting.",
+
+    "STEP 11 - Rebuild the main() function: Update main() to use the new sheet building functions. Both sheets should follow the same pattern but with their respective data (konv vs syariah) and plan lists.",
+
+    "STEP 12 - Run the script and verify: Execute the script, verify the xlsx is valid, verify it has formulas in the sheet XML (look for <f> elements), verify the data validation exists, verify the hyperlink works, and verify numeric data is present."
+  ],
+  "acceptance_criteria": [
+    "Running 'python3 /projects/sandbox/kirodev/generate_excel.py' completes without errors",
+    "Output file Tabel_Premi_MiUHC.xlsx is a valid ZIP/XLSX file with two sheets named 'Konvensional' and 'Syariah'",
+    "Header text is 'PETRUS JAKUB MANULIFE 087781896087' (not PARTNER) with clickable WhatsApp hyperlink",
+    "Each sheet has input cells for Gender (with data validation dropdown: Pria,Wanita) and Age (numeric)",
+    "Each sheet has INDEX/MATCH (or VLOOKUP) formulas in the results area that reference the data tables",
+    "Data tables contain numeric premium values for all 86 ages x 2 genders for each benefit/plan combination",
+    "Formula cells are present in the sheet XML (verified by finding <f> elements)",
+    "Data validation is present in the sheet XML (verified by finding <dataValidation> elements)",
+    "Premium numbers are stored as numeric values (not strings) in the data tables",
+    "The number format displays values with comma separators"
+  ],
+  "verification": [
+    "python3 /projects/sandbox/kirodev/generate_excel.py",
+    "python3 -c \"import zipfile; z=zipfile.ZipFile('/projects/sandbox/kirodev/Tabel_Premi_MiUHC.xlsx'); print('Files:', z.namelist()); z.close()\"",
+    "python3 -c \"import zipfile, xml.etree.ElementTree as ET; z=zipfile.ZipFile('/projects/sandbox/kirodev/Tabel_Premi_MiUHC.xlsx'); wb=ET.parse(z.open('xl/workbook.xml')); ns={'m':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}; sheets=wb.findall('.//m:sheet',ns); print('Sheets:', [s.get('name') for s in sheets]); z.close()\"",
+    "python3 -c \"import zipfile; z=zipfile.ZipFile('/projects/sandbox/kirodev/Tabel_Premi_MiUHC.xlsx'); s1=z.read('xl/worksheets/sheet1.xml').decode(); print('Has formulas:', '<f>' in s1); print('Has dataValidation:', 'dataValidation' in s1); print('Has PETRUS JAKUB:', 'PETRUS JAKUB' in z.read('xl/sharedStrings.xml').decode()); z.close()\"",
+    "python3 -c \"import zipfile; z=zipfile.ZipFile('/projects/sandbox/kirodev/Tabel_Premi_MiUHC.xlsx'); s1=z.read('xl/worksheets/sheet1.xml').decode(); import re; formulas=re.findall(r'<f>(.*?)</f>', s1); print(f'Formula count: {len(formulas)}'); print('Sample formulas:', formulas[:3] if formulas else 'NONE'); z.close()\""
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

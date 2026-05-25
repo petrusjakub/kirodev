@@ -1,0 +1,7 @@
+{
+  "task_id": "task-excel-lookup-redesign",
+  "task_description": "Redesign generate_excel.py to produce an Excel file with lookup functionality. The user selects Gender (Pria/Wanita) and Age (0-85) in input cells, and INDEX/MATCH formulas automatically display the relevant premium data. Two sheets: Konvensional and Syariah. Header changed to PETRUS JAKUB MANULIFE 087781896087 with clickable WhatsApp link.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
