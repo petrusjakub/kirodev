@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Completely rewrite generate_excel.py to create a MiUHC Plans 1-5 premium calculator Excel file with hardcoded premium data, calculator-style input interface, INDEX/MATCH lookup formulas, data validation dropdowns, and two sheets (Konvensional and Syariah).",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "STEP 1 - Remove all existing PDF parsing code and old plan structure (Diamond/Ruby/Emerald etc). Keep and enhance the XlsxWriter class which is needed to build xlsx from scratch. The new script will use ONLY hardcoded premium data.",
 
@@ -45,5 +45,5 @@
     "python3 -c \"import zipfile, xml.etree.ElementTree as ET; z=zipfile.ZipFile('/projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.xlsx'); s1=ET.parse(z.open('xl/worksheets/sheet1.xml')); ns={'main':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}; formulas=s1.getroot().findall('.//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}f'); print('Formula count:', len(formulas)); print('Sample formulas:', [f.text[:60] for f in formulas[:3] if f.text]); z.close()\""
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Implementation complete. All verification checks pass: valid xlsx with 2 sheets (Konvensional, Syariah), correct shared strings, 3 formulas per sheet (age calc, INDEX/MATCH lookup, monthly premium), 2 data validations per sheet (gender and plan dropdowns), hyperlink to WhatsApp, and all 50 premium values correctly placed in data tables."
 }
