@@ -192,7 +192,9 @@ class XlsxWriter:
           (value, style_id, 'number') - numeric cell
           (value, style_id, 'formula') - formula cell
           None - empty cell
-        data_validations: list of (sqref, formula1_str) e.g. [("B4", '"Pria,Wanita"')]
+        data_validations: list of tuples:
+          For list type: (sqref, "list", formula1, None)
+          For whole number: (sqref, "whole", formula1, formula2)
         merge_cells: list of ref strings e.g. ["A1:I1"]
         """
         self.sheets.append((name, rows, data_validations or [], merge_cells or []))
@@ -350,10 +352,17 @@ class XlsxWriter:
         # Data validations
         if data_validations:
             s += f'<dataValidations count="{len(data_validations)}">'
-            for sqref, formula1 in data_validations:
-                s += f'<dataValidation type="list" allowBlank="1" sqref="{sqref}">'
-                s += f'<formula1>{formula1}</formula1>'
-                s += '</dataValidation>'
+            for dv in data_validations:
+                sqref, dv_type, formula1, formula2 = dv
+                if dv_type == "list":
+                    s += f'<dataValidation type="list" allowBlank="1" sqref="{sqref}">'
+                    s += f'<formula1>{formula1}</formula1>'
+                    s += '</dataValidation>'
+                elif dv_type == "whole":
+                    s += f'<dataValidation type="whole" operator="between" allowBlank="1" sqref="{sqref}">'
+                    s += f'<formula1>{formula1}</formula1>'
+                    s += f'<formula2>{formula2}</formula2>'
+                    s += '</dataValidation>'
             s += '</dataValidations>'
         # Hyperlinks
         if sheet_idx in self.hyperlinks:
@@ -395,10 +404,9 @@ class XlsxWriter:
                     zf.writestr(f'xl/worksheets/_rels/sheet{i+1}.xml.rels', rels)
 
 
-def build_data_table(ages_data, benefit_key, plan_count, start_row):
+def build_data_table(ages_data, benefit_key, plan_count):
     """Build a data table block for a specific benefit type.
-    Returns (rows_list, num_data_rows) where rows_list contains the header + 172 data rows.
-    start_row is 0-based row index where this table starts in the sheet.
+    Returns rows_list containing 172 data rows.
     Ages 80-85 have no outpatient/dental data - use 0.
     """
     rows = []
@@ -406,7 +414,7 @@ def build_data_table(ages_data, benefit_key, plan_count, start_row):
     # (handled by caller who knows plan names)
     # Data rows: 172 rows (Pria_0..Pria_85, Wanita_0..Wanita_85)
     for gender in ["Pria", "Wanita"]:
-        gender_key = gender.lower().replace("pria", "pria").replace("wanita", "wanita")
+        gender_key = gender.lower()
         for age in range(86):
             key = f"{gender}_{age}"
             entry = ages_data[age]
@@ -505,7 +513,7 @@ def build_lookup_sheet(ages_data, sheet_type):
         data_col = _col_letter(plan_col_idx)  # The plan data column
         key_col = "A"  # Key is always column A
         # =INDEX(B$27:B$198,MATCH($B$4&"_"&$B$5,$A$27:$A$198,0))
-        formula = f'INDEX({data_col}${first_data_row_1based}:{data_col}${last_data_row_1based},MATCH($B$4&"_"&$B$5,${key_col}${first_data_row_1based}:${key_col}${last_data_row_1based},0))'
+        formula = f'IFERROR(INDEX({data_col}${first_data_row_1based}:{data_col}${last_data_row_1based},MATCH($B$4&"_"&$B$5,${key_col}${first_data_row_1based}:${key_col}${last_data_row_1based},0)),"")'
         return formula
 
     # Row 8 (index 8): Hospital Regular formulas
@@ -586,7 +594,7 @@ def build_lookup_sheet(ages_data, sheet_type):
     # Block 1: Hospital Regular
     header = [("Key", 1)] + [(p, 1) for p in PLANS_REGULAR]
     rows.append(header)
-    data_rows = build_data_table(ages_data, 'hospital', regular_count, hosp_reg_start)
+    data_rows = build_data_table(ages_data, 'hospital', regular_count)
     rows.extend(data_rows)
 
     # Gap
@@ -595,7 +603,7 @@ def build_lookup_sheet(ages_data, sheet_type):
     # Block 2: Hospital Smart
     header = [("Key", 1)] + [(p, 1) for p in plans_smart]
     rows.append(header)
-    data_rows = build_data_table(ages_data, 'hospital_smart', smart_count, hosp_smart_start)
+    data_rows = build_data_table(ages_data, 'hospital_smart', smart_count)
     rows.extend(data_rows)
 
     # Gap
@@ -604,7 +612,7 @@ def build_lookup_sheet(ages_data, sheet_type):
     # Block 3: Outpatient Regular
     header = [("Key", 1)] + [(p, 1) for p in PLANS_REGULAR]
     rows.append(header)
-    data_rows = build_data_table(ages_data, 'outpatient', regular_count, outp_reg_start)
+    data_rows = build_data_table(ages_data, 'outpatient', regular_count)
     rows.extend(data_rows)
 
     # Gap
@@ -613,7 +621,7 @@ def build_lookup_sheet(ages_data, sheet_type):
     # Block 4: Outpatient Smart
     header = [("Key", 1)] + [(p, 1) for p in plans_smart]
     rows.append(header)
-    data_rows = build_data_table(ages_data, 'outpatient_smart', smart_count, outp_smart_start)
+    data_rows = build_data_table(ages_data, 'outpatient_smart', smart_count)
     rows.extend(data_rows)
 
     if is_syariah:
@@ -623,7 +631,7 @@ def build_lookup_sheet(ages_data, sheet_type):
         # Block 5: Dental Regular
         header = [("Key", 1)] + [(p, 1) for p in PLANS_REGULAR]
         rows.append(header)
-        data_rows = build_data_table(ages_data, 'dental', regular_count, dent_reg_start)
+        data_rows = build_data_table(ages_data, 'dental', regular_count)
         rows.extend(data_rows)
 
         # Gap
@@ -632,11 +640,14 @@ def build_lookup_sheet(ages_data, sheet_type):
         # Block 6: Dental Smart
         header = [("Key", 1)] + [(p, 1) for p in plans_smart]
         rows.append(header)
-        data_rows = build_data_table(ages_data, 'dental_smart', smart_count, dent_smart_start)
+        data_rows = build_data_table(ages_data, 'dental_smart', smart_count)
         rows.extend(data_rows)
 
     # Data validation for gender dropdown in B4 (0-based row 3)
-    data_validations = [("B4", '"Pria,Wanita"')]
+    data_validations = [
+        ("B4", "list", '"Pria,Wanita"', None),
+        ("B5", "whole", "0", "85"),
+    ]
     # Merge cells for header
     merge_cells = ["A1:I1"]
 
