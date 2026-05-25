@@ -1,0 +1,37 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Completely rewrite generate_excel.py to create a MiUHC Plans 1-5 premium calculator Excel file with hardcoded premium data, calculator-style input interface, INDEX/MATCH lookup formulas, data validation dropdowns, and two sheets (Konvensional and Syariah).",
+  "status": "completed",
+  "steps": [
+    "STEP 1 - Remove all existing PDF parsing code and old plan structure",
+    "STEP 2 - Define hardcoded premium data for MiUHC Plans 1-5",
+    "STEP 3 - Enhance XlsxWriter class with input cell style (yellow bg + border)",
+    "STEP 4 - Build the calculator interface layout for each sheet",
+    "STEP 5 - Build the premium data reference table below the calculator",
+    "STEP 6 - Implement the INDEX/MATCH lookup formula for Premi Tahunan",
+    "STEP 7 - Create both sheets with identical data but different titles",
+    "STEP 8 - Set output filename to Kalkulator_Premi_MiUHC.xlsx",
+    "STEP 9 - Add number formatting #,##0 for premium values",
+    "STEP 10 - Run and verify output"
+  ],
+  "acceptance_criteria": [
+    "Running 'python3 /projects/sandbox/kirodev/generate_excel.py' completes without errors and without needing any PDF files",
+    "Output file /projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.xlsx exists and is a valid ZIP/xlsx file",
+    "The xlsx contains exactly two sheets named 'Konvensional' and 'Syariah'",
+    "Both sheets have the header 'PETRUS JAKUB MANULIFE 087781896087' with hyperlink to https://wa.me/6287781896087",
+    "Both sheets have input fields: Nama Tertanggung, Jenis Kelamin (dropdown: Pria/Wanita), Tanggal Lahir, Usia (formula), Plan (dropdown: Plan 1-5)",
+    "Both sheets have result formulas: Premi Tahunan (lookup), Premi Bulanan (Tahunan/10)",
+    "Premium data reference table with 50 values (5 plans x 5 age bands x 2 genders) is present in each sheet",
+    "Lookup formulas use INDEX/MATCH to find premium based on gender + age band + plan",
+    "Number format uses #,##0 (thousands separator) for premium values",
+    "No PDF parsing code remains in the script",
+    "Script uses only Python standard library (no pip packages)"
+  ],
+  "verification": [
+    "python3 /projects/sandbox/kirodev/generate_excel.py",
+    "python3 -c \"import zipfile; z=zipfile.ZipFile('/projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.xlsx'); print(z.namelist()); z.close()\""
+  ],
+  "blocked_reason": null,
+  "findings": "Implementation complete. Script generates valid xlsx with 10 files inside. Both sheets have 3 formulas each (age calc, premi tahunan lookup, premi bulanan). Data validations for gender and plan dropdowns working. Hyperlink to WhatsApp present. All 50 premium values stored correctly in data table (rows 16-25)."
+}

@@ -1,157 +1,41 @@
 #!/usr/bin/env python3
-"""Generate Tabel_Premi_MiUHC.xlsx from PDF source files."""
-import re
-import zlib
+"""Generate Kalkulator_Premi_MiUHC.xlsx - MiUHC Plans 1-5 Premium Calculator."""
 import zipfile
 import os
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-KONV_PDF = os.path.join(SCRIPT_DIR, 'B. Tabel Premi Miuhc Versi Quick PDF Per Sep 2025 (3).pdf')
-SYARIAH_PDF = os.path.join(SCRIPT_DIR, 'B. Tabel Premi Syariah 2024 - Miuhc Versi Quick PDF (3).pdf')
-OUTPUT_XLSX = os.path.join(SCRIPT_DIR, 'Tabel_Premi_MiUHC.xlsx')
-
-PLANS_REGULAR = ["Diamond", "Ruby", "Emerald", "Topaz", "Topaz ID", "Jade", "Jade ID", "Sapphire"]
-PLANS_SMART_KONV = ["Diamond Smart", "Ruby Smart", "Emerald Smart", "Topaz Smart", "Topaz ID Smart", "Jade Smart", "Jade ID Smart"]
-PLANS_SMART_SYARIAH = ["Diamond Smart", "Ruby Smart", "Emerald Smart", "Topaz Smart", "Jade Smart"]
+OUTPUT_XLSX = os.path.join(SCRIPT_DIR, 'Kalkulator_Premi_MiUHC.xlsx')
 
 WA_LINK = "https://wa.me/6287781896087"
 HEADER_TEXT = "PETRUS JAKUB MANULIFE 087781896087"
 
+# Premium data: PREMIUM_DATA[plan][gender][age_band] = annual premium (IDR)
+PREMIUM_DATA = {
+    "Plan 1 (100/200)": {
+        "Laki-Laki": {"20-30": 2380000, "31-40": 3710000, "41-50": 5040000, "51-60": 6370000, "61-70": 8360000},
+        "Perempuan": {"20-30": 3430000, "31-40": 4760000, "41-50": 6090000, "51-60": 7420000, "61-70": 9410000},
+    },
+    "Plan 2 (200/400)": {
+        "Laki-Laki": {"20-30": 3570000, "31-40": 5570000, "41-50": 7560000, "51-60": 9560000, "61-70": 12540000},
+        "Perempuan": {"20-30": 5150000, "31-40": 7150000, "41-50": 9140000, "51-60": 11140000, "61-70": 14120000},
+    },
+    "Plan 3 (400/800)": {
+        "Laki-Laki": {"20-30": 5950000, "31-40": 9280000, "41-50": 12600000, "51-60": 15930000, "61-70": 20900000},
+        "Perempuan": {"20-30": 8580000, "31-40": 11910000, "41-50": 15230000, "51-60": 18560000, "61-70": 23530000},
+    },
+    "Plan 4 (600/1.200)": {
+        "Laki-Laki": {"20-30": 8330000, "31-40": 12990000, "41-50": 17640000, "51-60": 22300000, "61-70": 29260000},
+        "Perempuan": {"20-30": 12010000, "31-40": 16670000, "41-50": 21320000, "51-60": 25980000, "61-70": 32940000},
+    },
+    "Plan 5 (1.000/2.000)": {
+        "Laki-Laki": {"20-30": 11900000, "31-40": 18560000, "41-50": 25200000, "51-60": 31860000, "61-70": 41800000},
+        "Perempuan": {"20-30": 17160000, "31-40": 23820000, "41-50": 30460000, "51-60": 37120000, "61-70": 47060000},
+    },
+}
 
-def extract_text_streams(pdf_path):
-    """Extract text from all zlib-compressed streams in a PDF."""
-    with open(pdf_path, "rb") as f:
-        data = f.read()
-    all_text_streams = []
-    for match in re.finditer(rb'stream\r?\n(.*?)\r?\nendstream', data, re.DOTALL):
-        raw = match.group(1)
-        try:
-            decompressed = zlib.decompress(raw)
-        except Exception:
-            continue
-        text_parts = []
-        for m in re.finditer(rb'\[(.*?)\]\s*TJ', decompressed, re.DOTALL):
-            parts = re.findall(rb'\((.*?)\)', m.group(1))
-            text_parts.append(b"".join(parts).decode("latin-1", errors="replace"))
-        for m in re.finditer(rb'\((.*?)\)\s*Tj', decompressed):
-            text_parts.append(m.group(1).decode("latin-1", errors="replace"))
-        if text_parts:
-            all_text_streams.append(text_parts)
-    return all_text_streams
-
-
-def extract_numbers(text_parts):
-    """Extract comma-formatted numbers from text parts list."""
-    nums = []
-    for p in text_parts:
-        if re.match(r'\d{1,3}(,\d{3})+$', p):
-            nums.append(p)
-    return nums
-
-
-def parse_konvensional():
-    """Parse Konvensional PDF data. Returns list of dicts per age."""
-    text_streams = extract_text_streams(KONV_PDF)
-    ages_data = []
-    for age in range(86):
-        stream_idx = age + 2
-        if stream_idx >= len(text_streams):
-            break
-        parts = text_streams[stream_idx]
-        nums = extract_numbers(parts)
-        full_text = ' '.join(parts)
-        has_rawat_jalan = 'Rawat Jalan' in full_text
-
-        entry = {'age': age, 'pria': {}, 'wanita': {}}
-        if has_rawat_jalan:
-            entry['pria']['hospital'] = nums[0:8]
-            entry['pria']['hospital_smart'] = nums[8:15]
-            entry['pria']['outpatient'] = nums[15:23]
-            entry['pria']['outpatient_smart'] = nums[23:30]
-            entry['wanita']['hospital'] = nums[30:38]
-            entry['wanita']['hospital_smart'] = nums[38:45]
-            entry['wanita']['outpatient'] = nums[45:53]
-            entry['wanita']['outpatient_smart'] = nums[53:60]
-        else:
-            entry['pria']['hospital'] = nums[0:8]
-            entry['pria']['hospital_smart'] = nums[8:15]
-            entry['pria']['outpatient'] = []
-            entry['pria']['outpatient_smart'] = []
-            entry['wanita']['hospital'] = nums[15:23]
-            entry['wanita']['hospital_smart'] = nums[23:30]
-            entry['wanita']['outpatient'] = []
-            entry['wanita']['outpatient_smart'] = []
-        ages_data.append(entry)
-    return ages_data
-
-
-def parse_syariah():
-    """Parse Syariah PDF data. Returns list of dicts per age."""
-    text_streams = extract_text_streams(SYARIAH_PDF)
-    ages_data = []
-    for age in range(86):
-        pria_idx = 3 + age * 2
-        wanita_idx = 4 + age * 2
-        if pria_idx >= len(text_streams) or wanita_idx >= len(text_streams):
-            break
-
-        pria_parts = text_streams[pria_idx]
-        wanita_parts = text_streams[wanita_idx]
-        pria_nums = extract_numbers(pria_parts)
-        wanita_nums = extract_numbers(wanita_parts)
-
-        pria_full = ' '.join(pria_parts)
-        has_rawat = 'Rawat Jalan' in pria_full
-        has_gigi = 'Gigi' in pria_full
-
-        entry = {'age': age, 'pria': {}, 'wanita': {}}
-
-        if has_gigi:
-            entry['pria']['hospital'] = pria_nums[0:8]
-            entry['pria']['hospital_smart'] = pria_nums[8:13]
-            entry['pria']['outpatient'] = pria_nums[13:21]
-            entry['pria']['outpatient_smart'] = pria_nums[21:26]
-            entry['pria']['dental'] = pria_nums[26:34]
-            entry['pria']['dental_smart'] = pria_nums[34:39]
-            entry['wanita']['hospital'] = wanita_nums[0:8]
-            entry['wanita']['hospital_smart'] = wanita_nums[8:13]
-            entry['wanita']['outpatient'] = wanita_nums[13:21]
-            entry['wanita']['outpatient_smart'] = wanita_nums[21:26]
-            entry['wanita']['dental'] = wanita_nums[26:34]
-            entry['wanita']['dental_smart'] = wanita_nums[34:39]
-        elif has_rawat:
-            entry['pria']['hospital'] = pria_nums[0:8]
-            entry['pria']['hospital_smart'] = pria_nums[8:13]
-            entry['pria']['outpatient'] = pria_nums[13:21]
-            entry['pria']['outpatient_smart'] = pria_nums[21:26]
-            entry['pria']['dental'] = []
-            entry['pria']['dental_smart'] = []
-            entry['wanita']['hospital'] = wanita_nums[0:8]
-            entry['wanita']['hospital_smart'] = wanita_nums[8:13]
-            entry['wanita']['outpatient'] = wanita_nums[13:21]
-            entry['wanita']['outpatient_smart'] = wanita_nums[21:26]
-            entry['wanita']['dental'] = []
-            entry['wanita']['dental_smart'] = []
-        else:
-            entry['pria']['hospital'] = pria_nums[0:8]
-            entry['pria']['hospital_smart'] = pria_nums[8:13]
-            entry['pria']['outpatient'] = []
-            entry['pria']['outpatient_smart'] = []
-            entry['pria']['dental'] = []
-            entry['pria']['dental_smart'] = []
-            entry['wanita']['hospital'] = wanita_nums[0:8]
-            entry['wanita']['hospital_smart'] = wanita_nums[8:13]
-            entry['wanita']['outpatient'] = []
-            entry['wanita']['outpatient_smart'] = []
-            entry['wanita']['dental'] = []
-            entry['wanita']['dental_smart'] = []
-        ages_data.append(entry)
-    return ages_data
-
-
-def _num(s):
-    """Convert comma-formatted number string to integer."""
-    return int(s.replace(",", ""))
+AGE_BANDS = ["20-30", "31-40", "41-50", "51-60", "61-70"]
+GENDERS = ["Laki-Laki", "Perempuan"]
+PLANS = ["Plan 1 (100/200)", "Plan 2 (200/400)", "Plan 3 (400/800)", "Plan 4 (600/1.200)", "Plan 5 (1.000/2.000)"]
 
 
 def _col_letter(col_idx):
@@ -195,7 +79,7 @@ class XlsxWriter:
         data_validations: list of tuples:
           For list type: (sqref, "list", formula1, None)
           For whole number: (sqref, "whole", formula1, formula2)
-        merge_cells: list of ref strings e.g. ["A1:I1"]
+        merge_cells: list of ref strings e.g. ["A1:F1"]
         """
         self.sheets.append((name, rows, data_validations or [], merge_cells or []))
 
@@ -237,7 +121,7 @@ class XlsxWriter:
         wb += '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
         wb += '<sheets>'
         for i, (name, _, _, _) in enumerate(self.sheets):
-            wb += f'<sheet name="{name}" sheetId="{i+1}" r:id="rId{i+1}"/>'
+            wb += f'<sheet name="{_xml_escape(name)}" sheetId="{i+1}" r:id="rId{i+1}"/>'
         wb += '</sheets></workbook>'
         return wb
 
@@ -258,7 +142,8 @@ class XlsxWriter:
         # 2 = green bg white text bold
         # 3 = bold green text
         # 4 = right-aligned
-        # 5 = number format #,##0 (for formula results and data table numbers)
+        # 5 = number format #,##0
+        # 6 = input cell (yellow background)
         s = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         s += '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
         # Number formats
@@ -273,23 +158,34 @@ class XlsxWriter:
         s += '<font><b/><sz val="11"/><color rgb="FF00B050"/><name val="Calibri"/></font>'  # 3: bold green
         s += '</fonts>'
         # Fills
-        s += '<fills count="3">'
-        s += '<fill><patternFill patternType="none"/></fill>'
-        s += '<fill><patternFill patternType="gray125"/></fill>'
+        s += '<fills count="4">'
+        s += '<fill><patternFill patternType="none"/></fill>'  # 0: none
+        s += '<fill><patternFill patternType="gray125"/></fill>'  # 1: gray125
         s += '<fill><patternFill patternType="solid"><fgColor rgb="FF00B050"/></patternFill></fill>'  # 2: green
+        s += '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/></patternFill></fill>'  # 3: yellow
         s += '</fills>'
         # Borders
-        s += '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+        s += '<borders count="2">'
+        s += '<border><left/><right/><top/><bottom/><diagonal/></border>'  # 0: no border
+        s += '<border>'  # 1: thin border all sides
+        s += '<left style="thin"><color auto="1"/></left>'
+        s += '<right style="thin"><color auto="1"/></right>'
+        s += '<top style="thin"><color auto="1"/></top>'
+        s += '<bottom style="thin"><color auto="1"/></bottom>'
+        s += '<diagonal/>'
+        s += '</border>'
+        s += '</borders>'
         # CellStyleXfs
         s += '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
         # CellXfs
-        s += '<cellXfs count="6">'
+        s += '<cellXfs count="7">'
         s += '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'  # 0: default
         s += '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'  # 1: bold
         s += '<xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'  # 2: green bg white bold
         s += '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>'  # 3: bold green text
         s += '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="right"/></xf>'  # 4: right-aligned
         s += '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'  # 5: number format #,##0
+        s += '<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>'  # 6: input cell (yellow bg + border)
         s += '</cellXfs>'
         s += '</styleSheet>'
         return s
@@ -309,8 +205,9 @@ class XlsxWriter:
         s += '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
         # Column widths
         s += '<cols>'
-        s += '<col min="1" max="1" width="32" customWidth="1"/>'
-        s += '<col min="2" max="9" width="18" customWidth="1"/>'
+        s += '<col min="1" max="1" width="22" customWidth="1"/>'
+        s += '<col min="2" max="2" width="24" customWidth="1"/>'
+        s += '<col min="3" max="7" width="16" customWidth="1"/>'
         s += '</cols>'
         s += '<sheetData>'
         for r_idx, row in enumerate(rows):
@@ -331,14 +228,11 @@ class XlsxWriter:
                     continue
                 ref = _cell_ref(r_idx, c_idx)
                 if cell_type == 'formula':
-                    # Formula cell: no t attribute
                     escaped_formula = _xml_escape(str(value))
                     s += f'<c r="{ref}" s="{style_id}"><f>{escaped_formula}</f><v>0</v></c>'
                 elif cell_type == 'number':
-                    # Number cell: no t attribute
                     s += f'<c r="{ref}" s="{style_id}"><v>{value}</v></c>'
                 else:
-                    # Shared string cell
                     si = self._get_ss_index(str(value))
                     s += f'<c r="{ref}" t="s" s="{style_id}"><v>{si}</v></c>'
             s += '</row>'
@@ -356,7 +250,7 @@ class XlsxWriter:
                 sqref, dv_type, formula1, formula2 = dv
                 if dv_type == "list":
                     s += f'<dataValidation type="list" allowBlank="1" sqref="{sqref}">'
-                    s += f'<formula1>{formula1}</formula1>'
+                    s += f'<formula1>{_xml_escape(formula1)}</formula1>'
                     s += '</dataValidation>'
                 elif dv_type == "whole":
                     s += f'<dataValidation type="whole" operator="between" allowBlank="1" sqref="{sqref}">'
@@ -404,272 +298,159 @@ class XlsxWriter:
                     zf.writestr(f'xl/worksheets/_rels/sheet{i+1}.xml.rels', rels)
 
 
-def build_data_table(ages_data, benefit_key, plan_count):
-    """Build a data table block for a specific benefit type.
-    Returns rows_list containing 172 data rows.
-    Ages 80-85 have no outpatient/dental data - use 0.
-    """
-    rows = []
-    # Header row: Key, plan1, plan2, ...
-    # (handled by caller who knows plan names)
-    # Data rows: 172 rows (Pria_0..Pria_85, Wanita_0..Wanita_85)
-    for gender in ["Pria", "Wanita"]:
-        gender_key = gender.lower()
-        for age in range(86):
-            key = f"{gender}_{age}"
-            entry = ages_data[age]
-            gender_data = entry[gender_key]
-            values = gender_data.get(benefit_key, [])
-            row = [(key, 0)]  # Key column as string
-            if values:
-                for i in range(plan_count):
-                    if i < len(values):
-                        row.append((_num(values[i]), 5, 'number'))
-                    else:
-                        row.append((0, 5, 'number'))
-            else:
-                # No data for this age (e.g., outpatient for ages 80-85)
-                for i in range(plan_count):
-                    row.append((0, 5, 'number'))
-            rows.append(row)
-    return rows
+def build_calculator_sheet(sheet_type):
+    """Build rows for a calculator sheet (Konvensional or Syariah).
 
+    Layout:
+      Row 1: Header (merged A1:F1, hyperlinked)
+      Row 2: Subtitle
+      Row 3: Empty
+      Row 4: Nama Tertanggung: | [input]
+      Row 5: Jenis Kelamin:    | [dropdown]
+      Row 6: Tanggal Lahir:    | [input]
+      Row 7: Usia:             | [formula]
+      Row 8: Plan:             | [dropdown]
+      Row 9: Empty
+      Row 10: HASIL PERHITUNGAN
+      Row 11: Premi Tahunan (Rp): | [lookup formula]
+      Row 12: Premi Bulanan (Rp): | [formula =B11/10]
+      Row 13: Empty
+      Row 14: Empty
+      Row 15: (Data table header)
+      Row 16-25: (Data table rows)
 
-def build_lookup_sheet(ages_data, sheet_type):
-    """Build rows for a lookup sheet (Konvensional or Syariah).
     Returns (rows, data_validations, merge_cells).
     """
-    is_syariah = (sheet_type == 'syariah')
-    plans_smart = PLANS_SMART_SYARIAH if is_syariah else PLANS_SMART_KONV
-    smart_count = len(plans_smart)
-    regular_count = len(PLANS_REGULAR)
-
-    title = "Tabel Premi MiUltimate HealthCare (Syariah)" if is_syariah else "Tabel Premi MiUltimate HealthCare (Konvensional)"
+    if sheet_type == 'konvensional':
+        subtitle = "KALKULATOR PREMI MIUHC - Berlaku mulai 1 September 2025"
+    else:
+        subtitle = "KALKULATOR KONTRIBUSI MIUHC SYARIAH - Berlaku mulai 1 Januari 2024"
 
     rows = []
-    # Row 0 (index 0): Header merged A1:I1
-    header_row = [(HEADER_TEXT, 3)] + [None] * 8
+
+    # Row 0 (Excel row 1): Header merged A1:F1
+    header_row = [(HEADER_TEXT, 3)] + [None] * 5
     rows.append(header_row)
-    # Row 1: Title
-    rows.append([(title, 1)])
-    # Row 2: Empty
-    rows.append([])
-    # Row 3 (index 3): Jenis Kelamin label + input
-    rows.append([("Jenis Kelamin:", 1), ("Pria", 0)])
-    # Row 4 (index 4): Usia label + input
-    rows.append([("Usia:", 1), (0, 0, 'number')])
-    # Row 5: Empty
+
+    # Row 1 (Excel row 2): Subtitle
+    rows.append([(subtitle, 1)])
+
+    # Row 2 (Excel row 3): Empty
     rows.append([])
 
-    # Row 6 (index 6): Section header - Hospital
-    rows.append([("Manfaat Perawatan Rumah Sakit", 2)])
-    # Row 7: Plan names for regular
-    row = [None] + [(p, 1) for p in PLANS_REGULAR]
-    rows.append(row)
+    # Row 3 (Excel row 4): Nama Tertanggung
+    rows.append([("Nama Tertanggung:", 1), ("", 6)])
 
-    # Now we need to know where data tables will start to write formulas.
-    # Calculate data table positions:
-    # Top section rows: 0-7 (8 rows) for header through plan names
-    # Then formula rows for hospital regular (row 8)
-    # Then smart plan names (row 9), smart formulas (row 10)
-    # Empty (row 11)
-    # Outpatient section header (row 12)
-    # Outpatient plan names (row 13), formulas (row 14)
-    # Outpatient smart plan names (row 15), smart formulas (row 16)
-    # For syariah: Empty (row 17), Dental header (row 18), plan names (row 19),
-    #   formulas (row 20), smart plan names (row 21), smart formulas (row 22)
-    # Then empty row(s) before data tables
+    # Row 4 (Excel row 5): Jenis Kelamin with dropdown
+    rows.append([("Jenis Kelamin:", 1), ("Laki-Laki", 6)])
 
-    if is_syariah:
-        data_start_row = 25  # 0-based index where first data table starts
+    # Row 5 (Excel row 6): Tanggal Lahir
+    rows.append([("Tanggal Lahir:", 1), ("", 6)])
+
+    # Row 6 (Excel row 7): Usia - formula calculating age from B6
+    # Using INT((TODAY()-B6)/365.25) which works well for date serial numbers
+    age_formula = 'INT((TODAY()-B6)/365.25)'
+    rows.append([("Usia:", 1), (age_formula, 0, 'formula')])
+
+    # Row 7 (Excel row 8): Plan with dropdown
+    rows.append([("Plan:", 1), ("Plan 1 (100/200)", 6)])
+
+    # Row 8 (Excel row 9): Empty
+    rows.append([])
+
+    # Row 9 (Excel row 10): HASIL PERHITUNGAN section header
+    rows.append([("HASIL PERHITUNGAN", 2)])
+
+    # Row 10 (Excel row 11): Premi Tahunan with lookup formula
+    # The data table starts at row 16 (0-based row 15).
+    # Key column is A16:A25, Plan headers are B15:F15, Data is B16:F25.
+    # Age band formula: IF(B7<=30,"20-30",IF(B7<=40,"31-40",IF(B7<=50,"41-50",IF(B7<=60,"51-60","61-70"))))
+    # Lookup key: B5&"_"&age_band
+    # Formula: IFERROR(INDEX(B16:F25, MATCH(B5&"_"&age_band, A16:A25, 0), MATCH(B8, B15:F15, 0)), "")
+    age_band_part = 'IF(B7<=30,"20-30",IF(B7<=40,"31-40",IF(B7<=50,"41-50",IF(B7<=60,"51-60","61-70"))))'
+    lookup_key = f'B5&"_"&{age_band_part}'
+    premi_formula = f'IFERROR(INDEX(B16:F25,MATCH({lookup_key},A16:A25,0),MATCH(B8,B15:F15,0)),"")'
+    rows.append([("Premi Tahunan (Rp):", 1), (premi_formula, 5, 'formula')])
+
+    # Row 11 (Excel row 12): Premi Bulanan = Tahunan / 10
+    rows.append([("Premi Bulanan (Rp):", 1), ('IFERROR(B11/10,"")', 5, 'formula')])
+
+    # Row 12 (Excel row 13): Empty
+    rows.append([])
+
+    # Row 13 (Excel row 14): Empty
+    rows.append([])
+
+    # Row 14 (Excel row 15): Data table header
+    # Columns: A=Key, B=Plan 1, C=Plan 2, D=Plan 3, E=Plan 4, F=Plan 5
+    data_header = [("Key", 1)]
+    for plan in PLANS:
+        data_header.append((plan, 1))
+    rows.append(data_header)
+
+    # Rows 15-24 (Excel rows 16-25): Data table rows
+    # Order: Laki-Laki_20-30, ..., Laki-Laki_61-70, Perempuan_20-30, ..., Perempuan_61-70
+    for gender in GENDERS:
+        for age_band in AGE_BANDS:
+            key = f"{gender}_{age_band}"
+            row = [(key, 0)]
+            for plan in PLANS:
+                row.append((PREMIUM_DATA[plan][gender][age_band], 5, 'number'))
+            rows.append(row)
+
+    # Empty row
+    rows.append([])
+
+    # TABEL LENGKAP PREMI section
+    if sheet_type == 'konvensional':
+        table_title = "TABEL LENGKAP PREMI MIUHC"
     else:
-        data_start_row = 19  # 0-based index where first data table starts
+        table_title = "TABEL LENGKAP KONTRIBUSI MIUHC SYARIAH"
 
-    # Calculate data table block positions (0-based row indices)
-    # Each block: 1 header row + 172 data rows = 173 rows
-    block_size = 173  # header + 172 data rows
+    rows.append([(table_title, 2)])
 
-    hosp_reg_start = data_start_row
-    hosp_smart_start = hosp_reg_start + block_size + 1  # +1 for gap
-    outp_reg_start = hosp_smart_start + block_size + 1
-    outp_smart_start = outp_reg_start + block_size + 1
+    # Sub-tables for each plan
+    for plan in PLANS:
+        rows.append([])  # Empty row before each plan
+        rows.append([(plan, 1)])  # Plan name as header
+        # Column headers: Usia, Laki-Laki, Perempuan
+        rows.append([("Usia", 1), ("Laki-Laki", 1), ("Perempuan", 1)])
+        # Data rows for each age band
+        for age_band in AGE_BANDS:
+            row = [(age_band, 0)]
+            row.append((PREMIUM_DATA[plan]["Laki-Laki"][age_band], 5, 'number'))
+            row.append((PREMIUM_DATA[plan]["Perempuan"][age_band], 5, 'number'))
+            rows.append(row)
 
-    if is_syariah:
-        dent_reg_start = outp_smart_start + block_size + 1
-        dent_smart_start = dent_reg_start + block_size + 1
-
-    # Helper to build INDEX/MATCH formula
-    # Data starts at start + 1 (after header), key column is A, data columns start at B
-    # Formula: =INDEX(COL_start:COL_end,MATCH($B$4&"_"&$B$5,$A$start:$A$end,0))
-    def make_formula(block_start, plan_col_idx):
-        """Make INDEX/MATCH formula.
-        block_start: 0-based row of header.
-        Data rows are block_start+1 to block_start+172 (0-based).
-        In Excel 1-based: data from block_start+2 to block_start+173.
-        plan_col_idx: 0-based column index in the data table (0=key col A, 1=first plan col B, etc.)
-        """
-        first_data_row_1based = block_start + 2  # 1-based row number
-        last_data_row_1based = block_start + 173  # 1-based row number
-        data_col = _col_letter(plan_col_idx)  # The plan data column
-        key_col = "A"  # Key is always column A
-        # =INDEX(B$27:B$198,MATCH($B$4&"_"&$B$5,$A$27:$A$198,0))
-        formula = f'IFERROR(INDEX({data_col}${first_data_row_1based}:{data_col}${last_data_row_1based},MATCH($B$4&"_"&$B$5,${key_col}${first_data_row_1based}:${key_col}${last_data_row_1based},0)),"")'
-        return formula
-
-    # Row 8 (index 8): Hospital Regular formulas
-    formula_row = [None]
-    for i in range(regular_count):
-        f = make_formula(hosp_reg_start, i + 1)  # col B=1, C=2, etc.
-        formula_row.append((f, 5, 'formula'))
-    rows.append(formula_row)
-
-    # Row 9: Smart plan names
-    row = [None] + [(p, 1) for p in plans_smart]
-    rows.append(row)
-
-    # Row 10: Hospital Smart formulas
-    formula_row = [None]
-    for i in range(smart_count):
-        f = make_formula(hosp_smart_start, i + 1)
-        formula_row.append((f, 5, 'formula'))
-    rows.append(formula_row)
-
-    # Row 11: Empty
+    # Empty row before footer
     rows.append([])
 
-    # Row 12: Outpatient section header
-    rows.append([("Manfaat Rawat Jalan", 2)])
+    # Footer
+    footer_text = "\u00a9 PETRUS JAKUB MANULIFE 087781896087"
+    rows.append([(footer_text, 0)])
 
-    # Row 13: Outpatient plan names
-    row = [None] + [(p, 1) for p in PLANS_REGULAR]
-    rows.append(row)
-
-    # Row 14: Outpatient Regular formulas
-    formula_row = [None]
-    for i in range(regular_count):
-        f = make_formula(outp_reg_start, i + 1)
-        formula_row.append((f, 5, 'formula'))
-    rows.append(formula_row)
-
-    # Row 15: Outpatient Smart plan names
-    row = [None] + [(p, 1) for p in plans_smart]
-    rows.append(row)
-
-    # Row 16: Outpatient Smart formulas
-    formula_row = [None]
-    for i in range(smart_count):
-        f = make_formula(outp_smart_start, i + 1)
-        formula_row.append((f, 5, 'formula'))
-    rows.append(formula_row)
-
-    if is_syariah:
-        # Row 17: Empty
-        rows.append([])
-        # Row 18: Dental section header
-        rows.append([("Manfaat Perawatan Gigi", 2)])
-        # Row 19: Dental plan names
-        row = [None] + [(p, 1) for p in PLANS_REGULAR]
-        rows.append(row)
-        # Row 20: Dental Regular formulas
-        formula_row = [None]
-        for i in range(regular_count):
-            f = make_formula(dent_reg_start, i + 1)
-            formula_row.append((f, 5, 'formula'))
-        rows.append(formula_row)
-        # Row 21: Dental Smart plan names
-        row = [None] + [(p, 1) for p in plans_smart]
-        rows.append(row)
-        # Row 22: Dental Smart formulas
-        formula_row = [None]
-        for i in range(smart_count):
-            f = make_formula(dent_smart_start, i + 1)
-            formula_row.append((f, 5, 'formula'))
-        rows.append(formula_row)
-
-    # Pad with empty rows until data_start_row
-    while len(rows) < data_start_row:
-        rows.append([])
-
-    # Now build data tables
-    # Block 1: Hospital Regular
-    header = [("Key", 1)] + [(p, 1) for p in PLANS_REGULAR]
-    rows.append(header)
-    data_rows = build_data_table(ages_data, 'hospital', regular_count)
-    rows.extend(data_rows)
-
-    # Gap
-    rows.append([])
-
-    # Block 2: Hospital Smart
-    header = [("Key", 1)] + [(p, 1) for p in plans_smart]
-    rows.append(header)
-    data_rows = build_data_table(ages_data, 'hospital_smart', smart_count)
-    rows.extend(data_rows)
-
-    # Gap
-    rows.append([])
-
-    # Block 3: Outpatient Regular
-    header = [("Key", 1)] + [(p, 1) for p in PLANS_REGULAR]
-    rows.append(header)
-    data_rows = build_data_table(ages_data, 'outpatient', regular_count)
-    rows.extend(data_rows)
-
-    # Gap
-    rows.append([])
-
-    # Block 4: Outpatient Smart
-    header = [("Key", 1)] + [(p, 1) for p in plans_smart]
-    rows.append(header)
-    data_rows = build_data_table(ages_data, 'outpatient_smart', smart_count)
-    rows.extend(data_rows)
-
-    if is_syariah:
-        # Gap
-        rows.append([])
-
-        # Block 5: Dental Regular
-        header = [("Key", 1)] + [(p, 1) for p in PLANS_REGULAR]
-        rows.append(header)
-        data_rows = build_data_table(ages_data, 'dental', regular_count)
-        rows.extend(data_rows)
-
-        # Gap
-        rows.append([])
-
-        # Block 6: Dental Smart
-        header = [("Key", 1)] + [(p, 1) for p in plans_smart]
-        rows.append(header)
-        data_rows = build_data_table(ages_data, 'dental_smart', smart_count)
-        rows.extend(data_rows)
-
-    # Data validation for gender dropdown in B4 (0-based row 3)
+    # Data validations
     data_validations = [
-        ("B4", "list", '"Pria,Wanita"', None),
-        ("B5", "whole", "0", "85"),
+        ("B5", "list", '"Laki-Laki,Perempuan"', None),
+        ("B8", "list", '"Plan 1 (100/200),Plan 2 (200/400),Plan 3 (400/800),Plan 4 (600/1.200),Plan 5 (1.000/2.000)"', None),
     ]
+
     # Merge cells for header
-    merge_cells = ["A1:I1"]
+    merge_cells = ["A1:F1"]
 
     return rows, data_validations, merge_cells
 
 
 def main():
-    print("Parsing Konvensional PDF...")
-    konv_data = parse_konvensional()
-    print(f"  Extracted data for {len(konv_data)} ages")
-
-    print("Parsing Syariah PDF...")
-    syariah_data = parse_syariah()
-    print(f"  Extracted data for {len(syariah_data)} ages")
-
-    print("Building Excel file...")
+    print("Building MiUHC Plans 1-5 Premium Calculator...")
     writer = XlsxWriter()
 
-    konv_rows, konv_dv, konv_mc = build_lookup_sheet(konv_data, 'konvensional')
-    syariah_rows, syariah_dv, syariah_mc = build_lookup_sheet(syariah_data, 'syariah')
-
+    # Build Konvensional sheet
+    konv_rows, konv_dv, konv_mc = build_calculator_sheet('konvensional')
     writer.add_sheet("Konvensional", konv_rows, konv_dv, konv_mc)
+
+    # Build Syariah sheet
+    syariah_rows, syariah_dv, syariah_mc = build_calculator_sheet('syariah')
     writer.add_sheet("Syariah", syariah_rows, syariah_dv, syariah_mc)
 
     # Add hyperlinks for row 0 col 0 on both sheets

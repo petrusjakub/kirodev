@@ -1,0 +1,14 @@
+{
+  "task_id": "task-miuhc-plans-calculator",
+  "task_description": "Completely rewrite generate_excel.py to create a MiUHC Plans 1-5 premium calculator Excel file. Replace old Diamond/Ruby/Emerald PDF-parsing approach with hardcoded Plans 1-5 premium data, calculator-style input interface with dropdowns and formulas, and two sheets (Konvensional and Syariah).",
+  "status": "completed",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "Script runs without errors, produces valid Kalkulator_Premi_MiUHC.xlsx with 10 XML files inside. Two sheets (Konvensional, Syariah) each with: 3 formulas (age calculation, INDEX/MATCH premium lookup, monthly premium), 2 data validations (gender dropdown, plan dropdown), 1 hyperlink to WhatsApp, 1 merged header cell, 50 premium numeric values in data table. All acceptance criteria met."
+  }
+}
