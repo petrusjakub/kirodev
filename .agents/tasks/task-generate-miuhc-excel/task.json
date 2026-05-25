@@ -1,7 +1,14 @@
 {
   "task_id": "task-generate-miuhc-excel",
   "task_description": "Rewrite generate_excel.py to produce Kalkulator_Premi_MiUHC.xlsx with identical structure to kalkulator_MIUHC.xlsx reference, extracting premium data from both Syariah and Konvensional PDFs, adding a new Syariah sheet, and ensuring lookup formulas work correctly.",
-  "status": "in_progress",
+  "status": "completed",
   "feature_order": ["FEAT-001"],
-  "blocked_reason": null
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "generate_excel.py runs successfully, produces valid xlsx with 4 sheets (2 hidden Database, 2 visible Calculator), correct premium data extracted from both PDFs, working INDEX/MATCH array formulas, data validations, merge cells, frozen panes, and WhatsApp hyperlinks."
+  }
 }
