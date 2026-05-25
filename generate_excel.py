@@ -17,7 +17,7 @@ PLANS_SMART_KONV = ["Diamond Smart", "Ruby Smart", "Emerald Smart", "Topaz Smart
 PLANS_SMART_SYARIAH = ["Diamond Smart", "Ruby Smart", "Emerald Smart", "Topaz Smart", "Jade Smart"]
 
 WA_LINK = "https://wa.me/6287781896087"
-HEADER_TEXT = "PETRUS PARTNER MANULIFE 087781896087"
+HEADER_TEXT = "PETRUS JAKUB MANULIFE 087781896087"
 
 
 def extract_text_streams(pdf_path):
