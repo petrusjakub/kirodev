@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Create a Python script that extracts premium data from both PDF files and generates an Excel (.xlsx) file with two sheets (Konvensional and Syariah), using only Python standard library modules. The Excel file replicates the table format from the video reference with proper formatting and includes clickable WhatsApp contact link.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create /projects/sandbox/kirodev/generate_excel.py with the following major components:",
     
@@ -37,5 +37,5 @@
     "python3 -c \"import zipfile, xml.etree.ElementTree as ET; z=zipfile.ZipFile('/projects/sandbox/kirodev/Tabel_Premi_MiUHC.xlsx'); ss=ET.parse(z.open('xl/sharedStrings.xml')); root=ss.getroot(); ns={'main':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}; texts=[t.text for t in root.iter('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t') if t.text]; print('PETRUS found:', any('PETRUS' in t for t in texts)); print('47,658,100 found:', any('47,658,100' in t for t in texts) or any('47658100' in t for t in texts)); z.close()\""
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Text streams in Konvensional PDF are at text-stream indices 2-87 (not raw stream 3-88). Age 0 is at text stream index 2 with 60 numbers; ages 80-85 have only 30 numbers (Hospital only, no Rawat Jalan). For Syariah, text streams 3-174 contain age data. Ages 80-85 have only 13 numbers (Hospital 8 + Hospital Smart 5 only). The script handles all these variations correctly."
 }
