@@ -300,6 +300,8 @@ class XlsxWriter:
                 if cell is None:
                     continue
                 value, style_id = cell
+                if value is None:
+                    continue
                 ref = self._cell_ref(r_idx, c_idx)
                 si = self._get_ss_index(str(value))
                 s += f'<c r="{ref}" t="s" s="{style_id}"><v>{si}</v></c>'
