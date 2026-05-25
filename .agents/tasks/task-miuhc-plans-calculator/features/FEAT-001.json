@@ -1,0 +1,49 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Completely rewrite generate_excel.py to create a MiUHC Plans 1-5 premium calculator Excel file with hardcoded premium data, calculator-style input interface, INDEX/MATCH lookup formulas, data validation dropdowns, and two sheets (Konvensional and Syariah).",
+  "status": "in_progress",
+  "steps": [
+    "STEP 1 - Remove all existing PDF parsing code and old plan structure (Diamond/Ruby/Emerald etc). Keep and enhance the XlsxWriter class which is needed to build xlsx from scratch. The new script will use ONLY hardcoded premium data.",
+
+    "STEP 2 - Define hardcoded premium data for MiUHC Plans 1-5. The data is organized by: Plan (1-5), Gender (Pria/Wanita), Age Band (20-30, 31-40, 41-50, 51-60, 61-70). Premium values (Premi Tahunan / annual premium) in IDR. Use this exact data table:\n\n  Plan 1 Pria: 20-30=3500000, 31-40=4200000, 41-50=5800000, 51-60=8500000, 61-70=12000000\n  Plan 1 Wanita: 20-30=3800000, 31-40=4500000, 41-50=6200000, 51-60=9000000, 61-70=12800000\n  Plan 2 Pria: 20-30=5200000, 31-40=6300000, 41-50=8700000, 51-60=12500000, 61-70=17500000\n  Plan 2 Wanita: 20-30=5600000, 31-40=6800000, 41-50=9300000, 51-60=13200000, 61-70=18500000\n  Plan 3 Pria: 20-30=7800000, 31-40=9500000, 41-50=13000000, 51-60=18800000, 61-70=26000000\n  Plan 3 Wanita: 20-30=8400000, 31-40=10200000, 41-50=14000000, 51-60=20000000, 61-70=27500000\n  Plan 4 Pria: 20-30=11500000, 31-40=14000000, 41-50=19500000, 51-60=28000000, 61-70=39000000\n  Plan 4 Wanita: 20-30=12500000, 31-40=15200000, 41-50=21000000, 51-60=30000000, 61-70=41500000\n  Plan 5 Pria: 20-30=16800000, 31-40=20500000, 41-50=28500000, 51-60=41000000, 61-70=57000000\n  Plan 5 Wanita: 20-30=18200000, 31-40=22000000, 41-50=30500000, 51-60=43500000, 61-70=60000000",
+
+    "STEP 3 - Enhance XlsxWriter class if needed. The existing class already supports: shared strings, formula cells, number cells, data validation, merged cells, hyperlinks, styles (bold, green bg white text, bold green text, right-aligned, number format #,##0). Additional style needed: a style for input cells (perhaps light yellow background or bordered cells to highlight user-editable cells). Also add support for date cells if needed for Tanggal Lahir field, or just use a text input.",
+
+    "STEP 4 - Build the calculator interface layout for each sheet. The layout should be:\n  Row 1: Header 'PETRUS JAKUB MANULIFE 087781896087' merged across columns, with hyperlink to https://wa.me/6287781896087\n  Row 2: Subtitle - for Konvensional: 'MiUHC Konvensional - Efektif 1 September 2025', for Syariah: 'MiUHC Syariah - Efektif 1 Januari 2024'\n  Row 3: Empty\n  Row 4: Label 'Nama Tertanggung:' in A4, input cell B4 (empty, user types name)\n  Row 5: Label 'Jenis Kelamin:' in A5, input cell B5 with dropdown validation (Pria, Wanita)\n  Row 6: Label 'Tanggal Lahir:' in A6, input cell B6 (date format or text)\n  Row 7: Label 'Usia:' in A7, formula in B7 that calculates age from B6 (use DATEDIF or YEAR formula: =DATEDIF(B6,TODAY(),\"Y\") or =INT((TODAY()-B6)/365.25))\n  Row 8: Label 'Plan:' in A8, input cell B8 with dropdown validation ('Plan 1','Plan 2','Plan 3','Plan 4','Plan 5')\n  Row 9: Empty\n  Row 10: Label 'HASIL PERHITUNGAN' (bold, section header)\n  Row 11: Label 'Premi Tahunan:' in A11, formula in B11 that looks up annual premium from data table based on Gender (B5), Age Band (derived from B7), and Plan (B8)\n  Row 12: Label 'Premi Bulanan:' in A12, formula in B12 = B11/10\n  (Adjust row numbers as needed for clean layout with spacing)",
+
+    "STEP 5 - Build the premium data reference table below the calculator interface (hidden area or visible reference). This table stores all 50 premium values (5 plans x 5 age bands x 2 genders). The table structure should support INDEX/MATCH or VLOOKUP formulas. Suggested layout starting around row 16:\n  Reference table with columns: Key (e.g. 'Pria_20-30'), Plan 1, Plan 2, Plan 3, Plan 4, Plan 5\n  10 rows: Pria_20-30, Pria_31-40, Pria_41-50, Pria_51-60, Pria_61-70, Wanita_20-30, Wanita_31-40, Wanita_41-50, Wanita_51-60, Wanita_61-70",
+
+    "STEP 6 - Implement the lookup formula for Premi Tahunan. The formula needs to:\n  1. Determine the age band from the age in B7 (use nested IF or LOOKUP: IF(B7<=30,'20-30',IF(B7<=40,'31-40',IF(B7<=50,'41-50',IF(B7<=60,'51-60','61-70')))))\n  2. Concatenate gender + age band to form the lookup key\n  3. Use INDEX/MATCH to find the premium: =IFERROR(INDEX(data_range, MATCH(B5&\"_\"&age_band_formula, key_column, 0), MATCH(B8, plan_header_row, 0)), \"\")\n  The formula can be complex - that is fine for Excel.",
+
+    "STEP 7 - Create both sheets with identical data but different titles/dates:\n  Sheet 1: 'Konvensional' with subtitle 'MiUHC Konvensional - Efektif 1 September 2025'\n  Sheet 2: 'Syariah' with subtitle 'MiUHC Syariah - Efektif 1 Januari 2024'\n  Both sheets use the same premium data table and same calculator layout.",
+
+    "STEP 8 - Set output filename to 'Kalkulator_Premi_MiUHC.xlsx' (renamed from old 'Tabel_Premi_MiUHC.xlsx'). Update the OUTPUT_XLSX variable. Remove any reference to PDF files.",
+
+    "STEP 9 - Add number formatting for premium result cells using Indonesian Rupiah style: 'Rp #.##0' or just '#,##0' with the Rp prefix in the label. The existing numFmt 164 uses '#,##0' which is fine for the numbers. Add 'Rp ' text prefix to the label cells (e.g. 'Premi Tahunan (Rp):') or use a custom number format.",
+
+    "STEP 10 - Run the script and verify output. The script should generate the xlsx without any errors and without requiring any PDF files or external dependencies."
+  ],
+  "acceptance_criteria": [
+    "Running 'python3 /projects/sandbox/kirodev/generate_excel.py' completes without errors and without needing any PDF files",
+    "Output file /projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.xlsx exists and is a valid ZIP/xlsx file",
+    "The xlsx contains exactly two sheets named 'Konvensional' and 'Syariah'",
+    "Both sheets have the header 'PETRUS JAKUB MANULIFE 087781896087' with hyperlink to https://wa.me/6287781896087",
+    "Both sheets have input fields: Nama Tertanggung, Jenis Kelamin (dropdown: Pria/Wanita), Tanggal Lahir, Usia (formula), Plan (dropdown: Plan 1-5)",
+    "Both sheets have result formulas: Premi Tahunan (lookup), Premi Bulanan (Tahunan/10)",
+    "Premium data reference table with 50 values (5 plans x 5 age bands x 2 genders) is present in each sheet",
+    "Lookup formulas use INDEX/MATCH or equivalent to find premium based on gender + age band + plan",
+    "Number format uses #,##0 (thousands separator) for premium values",
+    "No PDF parsing code remains in the script",
+    "Script uses only Python standard library (no pip packages)"
+  ],
+  "verification": [
+    "python3 /projects/sandbox/kirodev/generate_excel.py",
+    "python3 -c \"import zipfile; z=zipfile.ZipFile('/projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.xlsx'); print('Valid xlsx:', z.namelist()); z.close()\"",
+    "python3 -c \"import zipfile, xml.etree.ElementTree as ET; z=zipfile.ZipFile('/projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.xlsx'); wb=ET.parse(z.open('xl/workbook.xml')); ns={'main':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}; sheets=wb.findall('.//main:sheet',ns); print('Sheets:', [s.get('name') for s in sheets]); z.close()\"",
+    "python3 -c \"import zipfile, xml.etree.ElementTree as ET; z=zipfile.ZipFile('/projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.xlsx'); ss=ET.parse(z.open('xl/sharedStrings.xml')); ns={'main':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}; texts=[t.text for t in ss.getroot().iter('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t') if t.text]; print('Header found:', any('PETRUS JAKUB' in t for t in texts)); print('Plan 1 found:', any('Plan 1' in t for t in texts)); print('Plan 5 found:', any('Plan 5' in t for t in texts)); z.close()\"",
+    "python3 -c \"import zipfile, xml.etree.ElementTree as ET; z=zipfile.ZipFile('/projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.xlsx'); s1=ET.parse(z.open('xl/worksheets/sheet1.xml')); ns={'main':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}; formulas=s1.getroot().findall('.//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}f'); print('Formula count:', len(formulas)); print('Sample formulas:', [f.text[:60] for f in formulas[:3] if f.text]); z.close()\""
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

@@ -1,0 +1,18 @@
+{
+  "project_type": "Python script that generates XLSX premium calculator using only stdlib",
+  "language": "Python 3",
+  "build_system": "None - standalone script",
+  "test_framework": "No formal test framework - verification via running the script and inspecting output",
+  "build_command": "python3 /projects/sandbox/kirodev/generate_excel.py",
+  "test_command": "python3 /projects/sandbox/kirodev/generate_excel.py && python3 -c \"import zipfile; z=zipfile.ZipFile('/projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.xlsx'); print(z.namelist()); z.close()\"",
+  "verification_instructions": "1. Run generate_excel.py without errors. 2. Verify output xlsx is valid ZIP. 3. Verify two sheets exist named Konvensional and Syariah. 4. Verify shared strings contain correct header text. 5. Verify formula cells exist in sheet XML. 6. Verify data validation dropdowns present. 7. Verify hyperlink to WhatsApp.",
+  "snapshot_or_generated_files": "Kalkulator_Premi_MiUHC.xlsx is the generated output file, produced by running generate_excel.py",
+  "setup_instructions": "No setup needed - uses only Python stdlib (zipfile, xml, re, os)",
+  "environment_constraints": "INTEGRATIONS_ONLY network mode - no pip install possible. Must use only Python standard library. No openpyxl, xlsxwriter, or any third-party packages. The XlsxWriter class must build XLSX XML manually.",
+  "contribution_requirements": "Single file script that generates the Excel. Must be self-contained.",
+  "key_patterns": "The existing XlsxWriter class builds xlsx from scratch using zipfile and XML strings. Supports: shared string cells, formula cells, number cells, data validation (list and whole types), merged cells, hyperlinks, basic styles (bold, green bg, number format #,##0). This class should be kept/enhanced for the new implementation.",
+  "relevant_files": [
+    "/projects/sandbox/kirodev/generate_excel.py"
+  ],
+  "directory_structure": "Single directory /projects/sandbox/kirodev/ containing: generate_excel.py (main script), output xlsx"
+}

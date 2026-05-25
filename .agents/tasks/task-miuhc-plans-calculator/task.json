@@ -1,0 +1,7 @@
+{
+  "task_id": "task-miuhc-plans-calculator",
+  "task_description": "Completely rewrite generate_excel.py to create a MiUHC Plans 1-5 premium calculator Excel file. Replace old Diamond/Ruby/Emerald PDF-parsing approach with hardcoded Plans 1-5 premium data, calculator-style input interface with dropdowns and formulas, and two sheets (Konvensional and Syariah).",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
