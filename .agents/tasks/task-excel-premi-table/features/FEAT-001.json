@@ -1,0 +1,41 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Create a Python script that extracts premium data from both PDF files and generates an Excel (.xlsx) file with two sheets (Konvensional and Syariah), using only Python standard library modules. The Excel file replicates the table format from the video reference with proper formatting and includes clickable WhatsApp contact link.",
+  "status": "in_progress",
+  "steps": [
+    "Create /projects/sandbox/kirodev/generate_excel.py with the following major components:",
+    
+    "STEP 1 - PDF Text Extraction Function: Write a function that reads a PDF file, finds all zlib-compressed streams using regex pattern rb'stream\\r?\\n(.*?)\\r?\\nendstream', decompresses them, and extracts text strings from TJ and Tj operators. Return list of text-part lists (one per stream).",
+    
+    "STEP 2 - Konvensional Data Parser: Parse the Konvensional PDF ('B. Tabel Premi Miuhc Versi Quick PDF Per Sep 2025 (3).pdf'). Text streams 3-88 correspond to ages 0-85. Each stream contains PRIA data first, then WANITA data. For each gender, extract: (a) Manfaat Perawatan Rumah Sakit: 8 numeric values for plans [Diamond, Ruby, Emerald, Topaz, Topaz ID, Jade, Jade ID, Sapphire], then 7 values for Smart plans [Diamond Smart, Ruby Smart, Emerald Smart, Topaz Smart, Topaz ID Smart, Jade Smart, Jade ID Smart]; (b) Manfaat Rawat Jalan: same 8+7 structure. The numeric values are formatted like '47,658,100' (with commas). Parse by collecting all comma-formatted numbers from the stream in order - first 8 are Hospital regular, next 7 are Hospital Smart, next 8 are Outpatient regular, next 7 are Outpatient Smart. That's 30 values for PRIA, then same 30 for WANITA.",
+    
+    "STEP 3 - Syariah Data Parser: Parse the Syariah PDF ('B. Tabel Premi Syariah 2024 - Miuhc Versi Quick PDF (3).pdf'). Text streams 3-174 are age data with PRIA and WANITA in SEPARATE streams (stream 3=PRIA age 0, stream 4=WANITA age 0, stream 5=PRIA age 1, etc). Each stream has: (a) Hospital: 8 regular values + 5 Smart values [Diamond Smart, Ruby Smart, Emerald Smart, Topaz Smart, Jade Smart]; (b) Outpatient: 8 regular + 5 Smart; (c) Dental (Manfaat Perawatan Gigi): 8 regular + 5 Smart. That's 8+5+8+5+8+5 = 39 values per stream.",
+    
+    "STEP 4 - XLSX Writer Class: Create a class that builds an xlsx file from scratch using zipfile and xml.etree.ElementTree. The xlsx format requires these XML files inside the ZIP: [Content_Types].xml, _rels/.rels, xl/workbook.xml, xl/_rels/workbook.xml.rels, xl/worksheets/sheet1.xml, xl/worksheets/sheet2.xml, xl/sharedStrings.xml, xl/styles.xml. Implement support for: (a) multiple sheets with named tabs, (b) cell values (strings via shared strings table, and numbers), (c) basic cell styling (bold headers, background colors, borders, column widths), (d) hyperlinks (for the WhatsApp link), (e) merged cells for headers.",
+    
+    "STEP 5 - Excel Table Layout: For each sheet, create a table with this layout per age group: Row 1: Header 'PETRUS PARTNER MANULIFE 087781896087' with hyperlink to https://wa.me/6287781896087. Then for each age (0-85): A header row showing 'PRIA, [age] TAHUN' and 'WANITA, [age] TAHUN'. Below that, section headers 'Manfaat Perawatan Rumah Sakit', 'Manfaat Rawat Jalan' (and 'Manfaat Perawatan Gigi' for Syariah). Under each section: plan names as column headers, then premium values in the row below. Include both regular plans and Smart plan rows. Use green background (#00B050) for section headers matching the PDF/video style. Format numbers with comma separators.",
+    
+    "STEP 6 - A practical alternative layout (given the video likely shows one age at a time): Create the Excel with each age on its own section within the sheet. The layout per age should be: Title row with age/gender, then a table with columns for each plan and rows for each benefit type. Include both PRIA and WANITA sections per age. This matches how the PDF organizes data per page.",
+    
+    "STEP 7 - Run the script and verify: Execute generate_excel.py to produce Tabel_Premi_MiUHC.xlsx. Verify the output is a valid xlsx file by opening it with zipfile and checking it contains the expected XML structure and sheet names."
+  ],
+  "acceptance_criteria": [
+    "Running 'python3 /projects/sandbox/kirodev/generate_excel.py' completes without errors",
+    "Output file /projects/sandbox/kirodev/Tabel_Premi_MiUHC.xlsx exists and is a valid ZIP file",
+    "The xlsx contains two sheets named 'Konvensional' and 'Syariah'",
+    "Konvensional sheet contains premium data for ages 0-85, both PRIA and WANITA, with Hospital and Outpatient sections",
+    "Syariah sheet contains premium data for ages 0-85, both PRIA and WANITA, with Hospital, Outpatient, and Dental sections",
+    "The text 'PETRUS PARTNER MANULIFE 087781896087' appears in the file with a hyperlink to https://wa.me/6287781896087",
+    "Premium values match the source PDFs (e.g., PRIA age 0 Hospital Diamond = 47,658,100 for Konvensional, 42,551,900 for Syariah)",
+    "Numbers are formatted with comma separators for readability"
+  ],
+  "verification": [
+    "python3 /projects/sandbox/kirodev/generate_excel.py",
+    "python3 -c \"import zipfile; z=zipfile.ZipFile('/projects/sandbox/kirodev/Tabel_Premi_MiUHC.xlsx'); print(z.namelist()); z.close()\"",
+    "python3 -c \"import zipfile, xml.etree.ElementTree as ET; z=zipfile.ZipFile('/projects/sandbox/kirodev/Tabel_Premi_MiUHC.xlsx'); wb=ET.parse(z.open('xl/workbook.xml')); ns={'main':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}; sheets=wb.findall('.//main:sheet',ns); print([s.get('name') for s in sheets]); z.close()\"",
+    "python3 -c \"import zipfile, xml.etree.ElementTree as ET; z=zipfile.ZipFile('/projects/sandbox/kirodev/Tabel_Premi_MiUHC.xlsx'); ss=ET.parse(z.open('xl/sharedStrings.xml')); root=ss.getroot(); ns={'main':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}; texts=[t.text for t in root.iter('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t') if t.text]; print('PETRUS found:', any('PETRUS' in t for t in texts)); print('47,658,100 found:', any('47,658,100' in t for t in texts) or any('47658100' in t for t in texts)); z.close()\""
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
