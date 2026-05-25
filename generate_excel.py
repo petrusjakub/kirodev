@@ -11,31 +11,31 @@ HEADER_TEXT = "PETRUS JAKUB MANULIFE 087781896087"
 
 # Premium data: PREMIUM_DATA[plan][gender][age_band] = annual premium (IDR)
 PREMIUM_DATA = {
-    "Plan 1": {
-        "Pria":   {"20-30": 3500000, "31-40": 4200000, "41-50": 5800000, "51-60": 8500000, "61-70": 12000000},
-        "Wanita": {"20-30": 3800000, "31-40": 4500000, "41-50": 6200000, "51-60": 9000000, "61-70": 12800000},
+    "Plan 1 (100/200)": {
+        "Laki-Laki": {"20-30": 2380000, "31-40": 3710000, "41-50": 5040000, "51-60": 6370000, "61-70": 8360000},
+        "Perempuan": {"20-30": 3430000, "31-40": 4760000, "41-50": 6090000, "51-60": 7420000, "61-70": 9410000},
     },
-    "Plan 2": {
-        "Pria":   {"20-30": 5200000, "31-40": 6300000, "41-50": 8700000, "51-60": 12500000, "61-70": 17500000},
-        "Wanita": {"20-30": 5600000, "31-40": 6800000, "41-50": 9300000, "51-60": 13200000, "61-70": 18500000},
+    "Plan 2 (200/400)": {
+        "Laki-Laki": {"20-30": 3570000, "31-40": 5570000, "41-50": 7560000, "51-60": 9560000, "61-70": 12540000},
+        "Perempuan": {"20-30": 5150000, "31-40": 7150000, "41-50": 9140000, "51-60": 11140000, "61-70": 14120000},
     },
-    "Plan 3": {
-        "Pria":   {"20-30": 7800000, "31-40": 9500000, "41-50": 13000000, "51-60": 18800000, "61-70": 26000000},
-        "Wanita": {"20-30": 8400000, "31-40": 10200000, "41-50": 14000000, "51-60": 20000000, "61-70": 27500000},
+    "Plan 3 (400/800)": {
+        "Laki-Laki": {"20-30": 5950000, "31-40": 9280000, "41-50": 12600000, "51-60": 15930000, "61-70": 20900000},
+        "Perempuan": {"20-30": 8580000, "31-40": 11910000, "41-50": 15230000, "51-60": 18560000, "61-70": 23530000},
     },
-    "Plan 4": {
-        "Pria":   {"20-30": 11500000, "31-40": 14000000, "41-50": 19500000, "51-60": 28000000, "61-70": 39000000},
-        "Wanita": {"20-30": 12500000, "31-40": 15200000, "41-50": 21000000, "51-60": 30000000, "61-70": 41500000},
+    "Plan 4 (600/1.200)": {
+        "Laki-Laki": {"20-30": 8330000, "31-40": 12990000, "41-50": 17640000, "51-60": 22300000, "61-70": 29260000},
+        "Perempuan": {"20-30": 12010000, "31-40": 16670000, "41-50": 21320000, "51-60": 25980000, "61-70": 32940000},
     },
-    "Plan 5": {
-        "Pria":   {"20-30": 16800000, "31-40": 20500000, "41-50": 28500000, "51-60": 41000000, "61-70": 57000000},
-        "Wanita": {"20-30": 18200000, "31-40": 22000000, "41-50": 30500000, "51-60": 43500000, "61-70": 60000000},
+    "Plan 5 (1.000/2.000)": {
+        "Laki-Laki": {"20-30": 11900000, "31-40": 18560000, "41-50": 25200000, "51-60": 31860000, "61-70": 41800000},
+        "Perempuan": {"20-30": 17160000, "31-40": 23820000, "41-50": 30460000, "51-60": 37120000, "61-70": 47060000},
     },
 }
 
 AGE_BANDS = ["20-30", "31-40", "41-50", "51-60", "61-70"]
-GENDERS = ["Pria", "Wanita"]
-PLANS = ["Plan 1", "Plan 2", "Plan 3", "Plan 4", "Plan 5"]
+GENDERS = ["Laki-Laki", "Perempuan"]
+PLANS = ["Plan 1 (100/200)", "Plan 2 (200/400)", "Plan 3 (400/800)", "Plan 4 (600/1.200)", "Plan 5 (1.000/2.000)"]
 
 
 def _col_letter(col_idx):
@@ -322,9 +322,9 @@ def build_calculator_sheet(sheet_type):
     Returns (rows, data_validations, merge_cells).
     """
     if sheet_type == 'konvensional':
-        subtitle = "MiUHC Konvensional - Efektif 1 September 2025"
+        subtitle = "KALKULATOR PREMI MIUHC - Berlaku mulai 1 September 2025"
     else:
-        subtitle = "MiUHC Syariah - Efektif 1 Januari 2024"
+        subtitle = "KALKULATOR KONTRIBUSI MIUHC SYARIAH - Berlaku mulai 1 Januari 2024"
 
     rows = []
 
@@ -342,7 +342,7 @@ def build_calculator_sheet(sheet_type):
     rows.append([("Nama Tertanggung:", 1), ("", 6)])
 
     # Row 4 (Excel row 5): Jenis Kelamin with dropdown
-    rows.append([("Jenis Kelamin:", 1), ("Pria", 6)])
+    rows.append([("Jenis Kelamin:", 1), ("Laki-Laki", 6)])
 
     # Row 5 (Excel row 6): Tanggal Lahir
     rows.append([("Tanggal Lahir:", 1), ("", 6)])
@@ -353,7 +353,7 @@ def build_calculator_sheet(sheet_type):
     rows.append([("Usia:", 1), (age_formula, 0, 'formula')])
 
     # Row 7 (Excel row 8): Plan with dropdown
-    rows.append([("Plan:", 1), ("Plan 1", 6)])
+    rows.append([("Plan:", 1), ("Plan 1 (100/200)", 6)])
 
     # Row 8 (Excel row 9): Empty
     rows.append([])
@@ -389,7 +389,7 @@ def build_calculator_sheet(sheet_type):
     rows.append(data_header)
 
     # Rows 15-24 (Excel rows 16-25): Data table rows
-    # Order: Pria_20-30, Pria_31-40, ..., Pria_61-70, Wanita_20-30, ..., Wanita_61-70
+    # Order: Laki-Laki_20-30, ..., Laki-Laki_61-70, Perempuan_20-30, ..., Perempuan_61-70
     for gender in GENDERS:
         for age_band in AGE_BANDS:
             key = f"{gender}_{age_band}"
@@ -398,10 +398,41 @@ def build_calculator_sheet(sheet_type):
                 row.append((PREMIUM_DATA[plan][gender][age_band], 5, 'number'))
             rows.append(row)
 
+    # Empty row
+    rows.append([])
+
+    # TABEL LENGKAP PREMI section
+    if sheet_type == 'konvensional':
+        table_title = "TABEL LENGKAP PREMI MIUHC"
+    else:
+        table_title = "TABEL LENGKAP KONTRIBUSI MIUHC SYARIAH"
+
+    rows.append([(table_title, 2)])
+
+    # Sub-tables for each plan
+    for plan in PLANS:
+        rows.append([])  # Empty row before each plan
+        rows.append([(plan, 1)])  # Plan name as header
+        # Column headers: Usia, Laki-Laki, Perempuan
+        rows.append([("Usia", 1), ("Laki-Laki", 1), ("Perempuan", 1)])
+        # Data rows for each age band
+        for age_band in AGE_BANDS:
+            row = [(age_band, 0)]
+            row.append((PREMIUM_DATA[plan]["Laki-Laki"][age_band], 5, 'number'))
+            row.append((PREMIUM_DATA[plan]["Perempuan"][age_band], 5, 'number'))
+            rows.append(row)
+
+    # Empty row before footer
+    rows.append([])
+
+    # Footer
+    footer_text = "\u00a9 PETRUS JAKUB MANULIFE 087781896087"
+    rows.append([(footer_text, 0)])
+
     # Data validations
     data_validations = [
-        ("B5", "list", '"Pria,Wanita"', None),
-        ("B8", "list", '"Plan 1,Plan 2,Plan 3,Plan 4,Plan 5"', None),
+        ("B5", "list", '"Laki-Laki,Perempuan"', None),
+        ("B8", "list", '"Plan 1 (100/200),Plan 2 (200/400),Plan 3 (400/800),Plan 4 (600/1.200),Plan 5 (1.000/2.000)"', None),
     ]
 
     # Merge cells for header
