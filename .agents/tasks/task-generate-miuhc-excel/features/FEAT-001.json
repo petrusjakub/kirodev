@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Complete rewrite of generate_excel.py to produce Kalkulator_Premi_MiUHC.xlsx with 4 sheets: Database (Konvensional, hidden), Kalkulator MiUHC (Konvensional, visible), Database Syariah (hidden), and Kalkulator MiUHC Syariah (visible). Extract premium data from both PDFs and replicate the exact structure of kalkulator_MIUHC.xlsx.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Step 1 - PDF Data Extraction: Write functions to extract premium data from both PDF files using zlib decompression + regex. SYARIAH PDF ('B. Tabel Premi Syariah 2024 - Miuhc Versi Quick PDF (3).pdf'): 312 streams total. PRIA age N is in stream (15 + N*2), WANITA age N is in stream (16 + N*2), for N=0..85. Each stream's text contains comma-formatted numbers; take the first 13 numbers as RS premiums (8 regular plans + 5 Smart plans). KONVENSIONAL PDF ('B. Tabel Premi Miuhc Versi Quick PDF Per Sep 2025 (3).pdf'): 186 streams total. Age 0 is in stream 8, ages 1-85 are in streams 11-95 (stream = 10 + age). Each stream contains BOTH genders: first 15 numbers = PRIA RS (8 regular + 7 Smart), numbers[30:45] = WANITA RS (8 regular + 7 Smart). To get 13 columns from 15 Konvensional values, take indices [0,1,2,3,4,5,6,7,8,9,10,11,13] (skip index 12=Topaz ID Smart and index 14=Jade ID Smart). Text extraction: decompress each stream with zlib.decompress(), decode as latin-1, find all TJ operator content with regex r'\\[(.*?)\\]\\s*TJ', extract parenthesized strings with r'\\((.*?)\\)', join all strings, then find numbers with r'\\d{1,3}(?:,\\d{3})+' and convert by removing commas.",
     "Step 2 - XlsxWriter class: Build a comprehensive XlsxWriter class (using zipfile + raw XML) that supports: multiple sheets with hidden state, shared strings, cell styles (fonts, fills, borders, alignment, number formats matching the reference file's 47 cellXfs), row heights (custom), column widths, merge cells, data validations (list type), hyperlinks, array formulas (t='array' with ref attribute), shared formulas (t='shared' with ref and si attributes), frozen panes (xSplit/ySplit). The styles must replicate the reference file's 25 fonts, 19 fills, 10 borders, and 47 cellXfs from kalkulator_MIUHC.xlsx styles.xml.",
@@ -36,5 +36,5 @@
     "Verify formulas in calculator: python3 -c \"import zipfile; z=zipfile.ZipFile('Kalkulator_Premi_MiUHC.xlsx'); s2=z.read('xl/worksheets/sheet2.xml').decode(); assert 'IFERROR' in s2; assert 'INDEX' in s2; assert 'MATCH' in s2; assert 'Database!' in s2; print('Formulas verified'); z.close()\""
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Ages 80-85 in Konvensional PDF have only 30 numbers per stream (PRIA RS 15 + WANITA RS 15) instead of the normal 60 (no RJ data for elderly ages). The extraction logic handles this with a length check. All verification tests pass successfully."
 }
