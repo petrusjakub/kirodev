@@ -1,0 +1,7 @@
+{
+  "task_id": "task-generate-miuhc-excel",
+  "task_description": "Rewrite generate_excel.py to produce Kalkulator_Premi_MiUHC.xlsx with identical structure to kalkulator_MIUHC.xlsx reference, extracting premium data from both Syariah and Konvensional PDFs, adding a new Syariah sheet, and ensuring lookup formulas work correctly.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
