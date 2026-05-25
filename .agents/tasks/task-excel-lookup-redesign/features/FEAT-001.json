@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Completely rewrite generate_excel.py to produce an Excel file with lookup functionality. The Excel should have input cells for Gender and Age at the top of each sheet, with INDEX/MATCH formulas that display the relevant premium data based on the selected inputs. Data tables for all ages/genders should be placed below (starting around row 30+) to support the formulas. The XlsxWriter class must be extended to support formula cells, numeric cells, data validation dropdowns, and merged cells.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "STEP 1 - Fix header text: Change HEADER_TEXT from 'PETRUS PARTNER MANULIFE 087781896087' to 'PETRUS JAKUB MANULIFE 087781896087'. The WhatsApp link stays the same (https://wa.me/6287781896087).",
 
@@ -48,5 +48,5 @@
     "python3 -c \"import zipfile; z=zipfile.ZipFile('/projects/sandbox/kirodev/Tabel_Premi_MiUHC.xlsx'); s1=z.read('xl/worksheets/sheet1.xml').decode(); import re; formulas=re.findall(r'<f>(.*?)</f>', s1); print(f'Formula count: {len(formulas)}'); print('Sample formulas:', formulas[:3] if formulas else 'NONE'); z.close()\""
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Implementation completed successfully. Konvensional sheet has 30 formulas (8 hosp reg + 7 hosp smart + 8 outp reg + 7 outp smart), Syariah sheet has 39 formulas (adds 8 dental reg + 5 dental smart). Data tables start at row 20 for Konvensional and row 26 for Syariah. Each data table block has 173 rows (1 header + 172 data). Number format style index 5 uses custom numFmtId 164 with formatCode #,##0. All verification checks pass."
 }
