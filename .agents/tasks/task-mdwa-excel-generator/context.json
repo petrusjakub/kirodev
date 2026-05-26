@@ -1,0 +1,20 @@
+{
+  "project_type": "Python script-based Excel generator for insurance product presentation",
+  "language": "Python 3.9",
+  "build_system": "None - standalone Python scripts using only standard library (zipfile, xml)",
+  "test_framework": "None - verify by running the script and checking output file exists",
+  "build_command": "python3 generate_mdwa_excel.py",
+  "test_command": "python3 generate_mdwa_excel.py && python3 -c \"import zipfile; z=zipfile.ZipFile('Kalkulator_MDWA.xlsx'); print(z.namelist()); z.close()\"",
+  "verification_instructions": "Run generate_mdwa_excel.py and verify Kalkulator_MDWA.xlsx is created with 7 sheets",
+  "snapshot_or_generated_files": "Kalkulator_MDWA.xlsx is the generated output file",
+  "setup_instructions": "No setup needed - uses only Python standard library",
+  "environment_constraints": "INTEGRATIONS_ONLY network - cannot install packages. openpyxl is NOT available. Must use raw XML + zipfile approach (same as generate_excel.py). No pip install possible.",
+  "contribution_requirements": "Use Indonesian language (with some English terms). No Chinese characters anywhere.",
+  "key_patterns": "The existing generate_excel.py builds xlsx files using raw XML strings + zipfile.ZipFile. It constructs shared strings, styles, worksheets as XML strings and packages them into a valid xlsx. This same pattern must be used for the MDWA generator.",
+  "relevant_files": [
+    "generate_excel.py (reference pattern for raw XML xlsx generation)",
+    "generate_lemon_premium.py (to be DELETED - Chinese language)",
+    "保费费率表.xlsx (to be DELETED - Chinese output)"
+  ],
+  "directory_structure": "Flat directory with PDFs (source docs), Python scripts (generators), and xlsx files (outputs)"
+}
