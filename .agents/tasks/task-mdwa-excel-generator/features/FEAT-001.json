@@ -31,5 +31,5 @@
     "python3 -c \"import zipfile; z=zipfile.ZipFile('Kalkulator_MDWA.xlsx'); content=z.read('xl/sharedStrings.xml').decode(); assert '\\u4e2d' not in content; print('No Chinese chars found - OK')\" (verify no Chinese)"
   ],
   "blocked_reason": null,
-  "findings": "Script generates valid xlsx with 14 internal files and 7 sheets. No Chinese characters present. All verification checks pass. Used raw XML + zipfile approach (no openpyxl needed). Deleted generate_lemon_premium.py and the Chinese xlsx file."
+  "findings": "Script generates valid xlsx with 14 internal files and 7 sheets. No Chinese characters present. All verification checks pass. Used raw XML + zipfile approach (no openpyxl needed). Deleted generate_lemon_premium.py and the Chinese xlsx file. REDESIGNED: Added interactive KALKULATOR sheet as first sheet with 6 data validation dropdowns (Gender, Plan, Currency, Payment Term, Coverage, Mode) and 21 Excel formulas (IF, INDEX/MATCH) that auto-calculate eligibility, banding, benefit percentages, nominal amounts, ADB/TPD, and payment mode conversions. Data sheets (DATA_PLAN_A/B/C) contain structured lookup tables with benefit data for all plans/terms/coverage combinations."
 }
