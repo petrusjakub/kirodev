@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Generate Kalkulator_MDWA.xlsx - Interactive MDWA calculator with lookup functionality.
+"""Generate Kalkulator_MDWA.xlsx - MDWA Calculator with per-plan dropdown sheets.
 
-Redesigned with KALKULATOR sheet featuring:
-- Gender/Age/Premium/Plan/Currency/Payment Term/Coverage Period inputs
-- Excel formulas (IF, INDEX/MATCH) for automatic benefit calculation
-- Data validation dropdowns for input cells
-- Reference data sheets for Plan A, B, C
+Each Plan (A, B, C) has its own sheet with:
+- Visible YELLOW input cells with dropdown menus for Gender, Age, Premium, etc.
+- Formulas that auto-calculate benefits based on inputs
+- Lookup tables in hidden rows (50+) for INDEX/MATCH
+
+Sheets: PLAN A, PLAN B, PLAN C, KOMISI, PERBANDINGAN, RINGKASAN
 """
 import zipfile
 import os
+import re
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_XLSX = os.path.join(SCRIPT_DIR, 'Kalkulator_MDWA.xlsx')
@@ -19,6 +21,7 @@ def xml_escape(s):
 
 
 def col_letter(col_idx):
+    """Convert 0-based column index to Excel letter (0=A, 1=B, etc.)."""
     result = ''
     idx = col_idx
     while True:
@@ -30,7 +33,7 @@ def col_letter(col_idx):
 
 
 class SheetBuilder:
-    """Helper to build worksheet XML with rows, formulas, data validation, merges."""
+    """Helper to build worksheet XML with formulas, data validation, merges."""
 
     def __init__(self, ss_map):
         self.ss_map = ss_map
@@ -57,7 +60,6 @@ class SheetBuilder:
     def _cell_xml(self, col_idx, row_num, value, style=0, cell_type=None):
         ref = col_letter(col_idx) + str(row_num)
         if cell_type == 'f':
-            # Formula cell
             return '<c r="' + ref + '" s="' + str(style) + '"><f>' + xml_escape(str(value)) + '</f><v>0</v></c>'
         elif cell_type == 'n' or (cell_type is None and isinstance(value, (int, float))):
             return '<c r="' + ref + '" s="' + str(style) + '"><v>' + str(value) + '</v></c>'
@@ -110,11 +112,27 @@ class SheetBuilder:
         return s
 
 
+# ==============================================================
+# STYLES
+# ==============================================================
+# Style indices:
+# 0: default
+# 1: header green bg white bold text centered
+# 2: data cell with border centered
+# 3: title bold green font large
+# 4: data cell light green bg with border
+# 5: section header dark green bg white bold large
+# 6: number format with comma, border, centered
+# 7: bold black left aligned
+# 8: input cell (YELLOW bg, blue border, bold blue font) - PROMINENT
+# 9: result cell (light blue bg, border, number format)
+# 10: label bold black with border
+# 11: note italic gray
+# 12: percentage format with border centered
 
 def build_styles_xml():
     s = chr(60) + '?xml version="1.0" encoding="UTF-8" standalone="yes"?' + chr(62)
     s += '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-    # numFmts
     s += '<numFmts count="2">'
     s += '<numFmt numFmtId="164" formatCode="#,##0"/>'
     s += '<numFmt numFmtId="165" formatCode="0.00%"/>'
@@ -132,7 +150,7 @@ def build_styles_xml():
     s += '<font><i/><sz val="9.0"/><color rgb="FF666666"/><name val="Arial"/></font>'
     s += '</fonts>'
     # fills: 0=none, 1=gray, 2=manulife green, 3=light green, 4=white, 5=dark green,
-    # 6=light yellow (input), 7=light blue (result)
+    # 6=YELLOW (input highlight), 7=light blue (result)
     s += '<fills count="8">'
     s += '<fill><patternFill patternType="none"/></fill>'
     s += '<fill><patternFill patternType="lightGray"/></fill>'
@@ -140,7 +158,7 @@ def build_styles_xml():
     s += '<fill><patternFill patternType="solid"><fgColor rgb="FFE8F5EE"/><bgColor rgb="FFE8F5EE"/></patternFill></fill>'
     s += '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/><bgColor rgb="FFFFFFFF"/></patternFill></fill>'
     s += '<fill><patternFill patternType="solid"><fgColor rgb="FF00B050"/><bgColor rgb="FF00B050"/></patternFill></fill>'
-    s += '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFCC"/><bgColor rgb="FFFFFFCC"/></patternFill></fill>'
+    s += '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/><bgColor rgb="FFFFFF00"/></patternFill></fill>'
     s += '<fill><patternFill patternType="solid"><fgColor rgb="FFE6F3FF"/><bgColor rgb="FFE6F3FF"/></patternFill></fill>'
     s += '</fills>'
     # borders
@@ -155,44 +173,42 @@ def build_styles_xml():
     s += '<top style="medium"><color rgb="FF0000FF"/></top>'
     s += '<bottom style="medium"><color rgb="FF0000FF"/></bottom></border>'
     s += '</borders>'
-    # cellStyleXfs
     s += '<cellStyleXfs count="1">'
     s += '<xf borderId="0" fillId="0" fontId="0" numFmtId="0"/>'
     s += '</cellStyleXfs>'
-    # cellXfs  (styles 0-12)
-    # 0: default
-    # 1: header green bg white bold text centered
-    # 2: data cell with border centered
-    # 3: title bold green font
-    # 4: data cell light green bg
-    # 5: section header dark green bg white bold large
-    # 6: number format with comma, border, centered
-    # 7: bold black left aligned
-    # 8: input cell (yellow bg, blue border, bold blue font)
-    # 9: result cell (light blue bg, border, number format)
-    # 10: label bold black with border
-    # 11: note italic gray
-    # 12: percentage format with border centered
+    # cellXfs (styles 0-12)
     s += '<cellXfs count="13">'
+    # 0: default
     s += '<xf borderId="0" fillId="0" fontId="0" numFmtId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>'
+    # 1: header green bg white bold centered
     s += '<xf borderId="1" fillId="2" fontId="1" numFmtId="0" xfId="0" applyAlignment="1" applyBorder="1" applyFill="1" applyFont="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+    # 2: data cell bordered centered
     s += '<xf borderId="1" fillId="0" fontId="0" numFmtId="0" xfId="0" applyAlignment="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+    # 3: title bold green font
     s += '<xf borderId="0" fillId="0" fontId="2" numFmtId="0" xfId="0" applyAlignment="1" applyFont="1"><alignment vertical="center" wrapText="1"/></xf>'
+    # 4: data cell light green bg
     s += '<xf borderId="1" fillId="3" fontId="0" numFmtId="0" xfId="0" applyAlignment="1" applyBorder="1" applyFill="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+    # 5: section header dark green bg white bold large
     s += '<xf borderId="1" fillId="5" fontId="5" numFmtId="0" xfId="0" applyAlignment="1" applyBorder="1" applyFill="1" applyFont="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+    # 6: number format with comma, border, centered
     s += '<xf borderId="1" fillId="0" fontId="0" numFmtId="164" xfId="0" applyAlignment="1" applyBorder="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+    # 7: bold black left aligned
     s += '<xf borderId="0" fillId="0" fontId="3" numFmtId="0" xfId="0" applyAlignment="1" applyFont="1"><alignment vertical="center" wrapText="1"/></xf>'
+    # 8: input cell (YELLOW bg, blue border, bold blue font) - VERY VISIBLE
     s += '<xf borderId="2" fillId="6" fontId="6" numFmtId="0" xfId="0" applyAlignment="1" applyBorder="1" applyFill="1" applyFont="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+    # 9: result cell (light blue bg, border, number format)
     s += '<xf borderId="1" fillId="7" fontId="3" numFmtId="164" xfId="0" applyAlignment="1" applyBorder="1" applyFill="1" applyFont="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+    # 10: label bold black with border
     s += '<xf borderId="1" fillId="0" fontId="3" numFmtId="0" xfId="0" applyAlignment="1" applyBorder="1" applyFont="1"><alignment vertical="center" wrapText="1"/></xf>'
+    # 11: note italic gray
     s += '<xf borderId="0" fillId="0" fontId="7" numFmtId="0" xfId="0" applyAlignment="1" applyFont="1"><alignment vertical="center" wrapText="1"/></xf>'
-    s += '<xf borderId="1" fillId="0" fontId="0" numFmtId="165" xfId="0" applyAlignment="1" applyBorder="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+    # 12: result cell text (light blue bg, border, no number format)
+    s += '<xf borderId="1" fillId="7" fontId="3" numFmtId="0" xfId="0" applyAlignment="1" applyBorder="1" applyFill="1" applyFont="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
     s += '</cellXfs>'
     s += '<cellStyles count="1"><cellStyle xfId="0" name="Normal" builtinId="0"/></cellStyles>'
     s += '<dxfs count="0"/>'
     s += '</styleSheet>'
     return s
-
 
 
 def build_theme_xml():
@@ -238,696 +254,643 @@ def build_shared_strings(strings):
     return ss
 
 
-
-def build_kalkulator_sheet(ss_map):
-    """Sheet 1: KALKULATOR - Interactive lookup/calculator sheet.
+# ==============================================================
+# PLAN A SHEET - ANUITAS
+# ==============================================================
+def build_plan_a_sheet(ss_map):
+    """PLAN A sheet with own Gender/Age/Premium/MasaBayar/Coverage inputs.
     
-    Input cells:
-    - B3: Gender (Pria/Wanita)
-    - B4: Usia (Age, 0-85)
-    - B5: Premi (Premium amount)
-    - B6: Plan (A/B/C)
-    - B7: Mata Uang (IDR/USD)
-    - B8: Masa Pembayaran (Single/5/10)
-    - B9: Masa Pertanggungan (Coverage period)
+    Input cells (YELLOW background):
+    - C4: Jenis Kelamin (Pria/Wanita) dropdown
+    - C5: Usia Masuk (number)
+    - C6: Premi Tahunan IDR (number)
+    - C7: Masa Bayar (Single/5 Tahun/10 Tahun) dropdown
+    - C8: Masa Pertanggungan (20 Tahun/30 Tahun) dropdown
     
-    Results section uses formulas referencing DATA sheets.
+    Results (row 10+):
+    - Status Kelayakan
+    - Level Banding
+    - Manfaat Tahapan Tahunan (%)
+    - Manfaat Tahapan Tahunan (nominal)
+    - Mulai Pembayaran
+    - Jumlah Tahun Pembayaran
+    - Total Tahapan
+    - ADB & TPD per Tahun
+    - Total Seluruh Manfaat
+    
+    Lookup table in rows 50+ for Banding 2 extra percentages.
     """
     sb = SheetBuilder(ss_map)
-    sb.set_col_width(1, 28)
-    sb.set_col_width(2, 22)
-    sb.set_col_width(3, 22)
-    sb.set_col_width(4, 25)
-    sb.set_col_width(5, 25)
-    sb.set_col_width(6, 20)
+    sb.set_col_width(1, 8)   # A - spacer
+    sb.set_col_width(2, 32)  # B - labels
+    sb.set_col_width(3, 28)  # C - inputs/values
+    sb.set_col_width(4, 30)  # D - notes
+    sb.set_col_width(5, 20)  # E
 
-    r = 1
-    # Title
-    sb.add_row(r, [(0, 'KALKULATOR MDWA - Manulife Dynamic Wealth Assurance', 5)])
-    sb.add_merge('A1:F1')
-    r += 2
+    # Row 1-2: Title
+    sb.add_row(1, [(1, 'PLAN A - ANUITAS', 3)], height=28)
+    sb.add_merge('B1:D1')
+    sb.add_row(2, [(1, 'Manfaat Tahapan Tahunan (Annual Payout)', 11)])
 
-    # === INPUT SECTION ===
-    sb.add_row(r, [(0, 'INPUT DATA NASABAH', 7)])
-    r += 1
+    # Row 3: Section header INPUT
+    sb.add_row(3, [(1, 'INPUT DATA', 5), (2, '', 5), (3, '', 5)])
+    sb.add_merge('B3:D3')
 
-    # Gender
-    sb.add_row(r, [(0, 'Jenis Kelamin:', 10), (1, 'Pria', 8)])
-    sb.add_data_validation('B4', '"Pria,Wanita"')
-    r += 1
+    # Row 4: Gender
+    sb.add_row(4, [(1, 'JENIS KELAMIN:', 10), (2, 'Pria', 8)])
+    sb.add_data_validation('C4', '"Pria,Wanita"')
 
-    # Age
-    sb.add_row(r, [(0, 'Usia Masuk (tahun):', 10), (1, 30, 8, 'n')])
-    r += 1
+    # Row 5: Age
+    sb.add_row(5, [(1, 'USIA MASUK:', 10), (2, 30, 8, 'n')])
 
-    # Premium
-    sb.add_row(r, [(0, 'Premi (nominal):', 10), (1, 100000000, 8, 'n')])
-    r += 1
+    # Row 6: Premium
+    sb.add_row(6, [(1, 'PREMI TAHUNAN (IDR):', 10), (2, 100000000, 8, 'n')])
 
-    # Plan
-    sb.add_row(r, [(0, 'Plan:', 10), (1, 'A', 8)])
-    sb.add_data_validation('B7', '"A,B,C"')
-    r += 1
+    # Row 7: Payment Term
+    sb.add_row(7, [(1, 'MASA BAYAR:', 10), (2, 'Single', 8)])
+    sb.add_data_validation('C7', '"Single,5 Tahun,10 Tahun"')
 
-    # Currency
-    sb.add_row(r, [(0, 'Mata Uang:', 10), (1, 'IDR', 8)])
-    sb.add_data_validation('B8', '"IDR,USD"')
-    r += 1
+    # Row 8: Coverage
+    sb.add_row(8, [(1, 'MASA PERTANGGUNGAN:', 10), (2, '20 Tahun', 8)])
+    sb.add_data_validation('C8', '"20 Tahun,30 Tahun"')
 
-    # Payment Term
-    sb.add_row(r, [(0, 'Masa Pembayaran Premi:', 10), (1, 'Single', 8)])
-    sb.add_data_validation('B9', '"Single,5,10"')
-    r += 1
+    # Row 9: blank separator
+    sb.add_row(9, [])
 
-    # Coverage Period
-    sb.add_row(r, [(0, 'Masa Pertanggungan (tahun):', 10), (1, 20, 8, 'n')])
-    sb.add_data_validation('B10', '"5,6,7,8,9,10,11,12,13,14,15,20,30"')
-    r += 1
+    # Row 10: HASIL section header
+    sb.add_row(10, [(1, 'HASIL PERHITUNGAN', 5), (2, '', 5), (3, '', 5)])
+    sb.add_merge('B10:D10')
 
-    # Mode Pembayaran
-    sb.add_row(r, [(0, 'Mode Pembayaran:', 10), (1, 'Tahunan', 8)])
-    sb.add_data_validation('B11', '"Tahunan,Semesteran,Triwulanan,Bulanan"')
-    r += 2
+    # Row 11: Status Kelayakan
+    # Single: max 85, Regular: max 70
+    elig_f = 'IF(C7="Single",IF(C5<=85,"ELIGIBLE","TIDAK ELIGIBLE - Usia maks 85"),IF(C5<=70,"ELIGIBLE","TIDAK ELIGIBLE - Usia maks 70"))'
+    sb.add_row(11, [(1, 'STATUS KELAYAKAN:', 10), (2, elig_f, 12, 'f')])
 
-    # === ELIGIBILITY CHECK ===
-    r = 13
-    sb.add_row(r, [(0, 'HASIL PERHITUNGAN', 5)])
-    sb.add_merge('A13:F13')
-    r += 1
+    # Row 12: Level Banding
+    # Single: >=500M = B2, else B1; Regular: >=100M = B2, else B1
+    banding_f = 'IF(C7="Single",IF(C6>=500000000,"Banding 2","Banding 1"),IF(C6>=100000000,"Banding 2","Banding 1"))'
+    sb.add_row(12, [(1, 'LEVEL BANDING:', 10), (2, banding_f, 12, 'f')])
 
-    # Eligibility formula
-    # Single: age 0-85, Regular (5/10): age 0-70
-    elig_formula = 'IF(B9="Single",IF(B5<=85,"ELIGIBLE","TIDAK ELIGIBLE - Usia maks 85 tahun"),IF(B5<=70,"ELIGIBLE","TIDAK ELIGIBLE - Usia maks 70 tahun untuk PPP 5/10"))'
-    sb.add_row(r, [(0, 'Kelayakan Usia:', 10), (1, elig_formula, 9, 'f')])
-    r += 1
+    # Row 13: Tahapan % (Banding 1)
+    # Plan A: 20yr: Single=9.5%, 5yr=65%, 10yr=235%; 30yr: Single=7%, 5yr=40%, 10yr=105%
+    tahapan_pct_f = 'IF(C8="20 Tahun",IF(C7="Single",9.5,IF(C7="5 Tahun",65,235)),IF(C7="Single",7,IF(C7="5 Tahun",40,105)))'
+    sb.add_row(13, [(1, 'MANFAAT TAHAPAN TAHUNAN (%):', 10), (2, tahapan_pct_f, 9, 'f'), (3, '% dari Premi (Banding 1)', 11)])
 
-    # Banding determination
-    # Single IDR: <500M = B1, >=500M = B2; Regular IDR: <100M = B1, >=100M = B2
-    # Single USD: <50000 = B1, >=50000 = B2; Regular USD: <10000 = B1, >=10000 = B2
-    banding_formula = (
-        'IF(B8="IDR",'
-        'IF(B9="Single",IF(B6>=500000000,"Banding 2","Banding 1"),IF(B6>=100000000,"Banding 2","Banding 1")),'
-        'IF(B9="Single",IF(B6>=50000,"Banding 2","Banding 1"),IF(B6>=10000,"Banding 2","Banding 1")))'
-    )
-    sb.add_row(r, [(0, 'Level Banding:', 10), (1, banding_formula, 9, 'f')])
-    r += 1
+    # Row 14: Banding 2 Extra %
+    # 20yr: Single+6%, 5yr+30%, 10yr+60%; 30yr: Single+9%, 5yr+45%, 10yr+90%
+    extra_pct_f = 'IF(C12="Banding 2",IF(C8="20 Tahun",IF(C7="Single",6,IF(C7="5 Tahun",30,60)),IF(C7="Single",9,IF(C7="5 Tahun",45,90))),0)'
+    sb.add_row(14, [(1, 'BANDING 2 EXTRA (%):', 10), (2, extra_pct_f, 9, 'f'), (3, 'Tambahan jika Banding 2', 11)])
 
-    # Min premium check
-    min_prem_formula = (
-        'IF(B8="IDR",'
-        'IF(B9="Single",IF(B6>=50000000,"OK - Min IDR 50 Juta","KURANG - Min IDR 50 Juta"),IF(B6>=24000000,"OK - Min IDR 24 Juta","KURANG - Min IDR 24 Juta")),'
-        'IF(B9="Single",IF(B6>=5000,"OK - Min USD 5,000","KURANG - Min USD 5,000"),IF(B6>=2400,"OK - Min USD 2,400","KURANG - Min USD 2,400")))'
-    )
-    sb.add_row(r, [(0, 'Cek Minimum Premi:', 10), (1, min_prem_formula, 9, 'f')])
-    r += 1
+    # Row 15: Total Tahapan %
+    total_pct_f = 'C13+C14'
+    sb.add_row(15, [(1, 'TOTAL TAHAPAN % PER TAHUN:', 10), (2, total_pct_f, 9, 'f')])
 
-    # Coverage period validation
-    cov_valid_formula = (
-        'IF(B7="A",IF(OR(B10=20,B10=30),"VALID","Plan A hanya 20/30 tahun"),'
-        'IF(B7="B",IF(OR(B10=5,B10=6,B10=7,B10=8,B10=9,B10=10,B10=11,B10=12,B10=13,B10=14,B10=15,B10=20,B10=30),"VALID","Plan B: 5-15/20/30 tahun"),'
-        'IF(OR(B10=10,B10=15,B10=20,B10=30),"VALID","Plan C hanya 10/15/20/30 tahun")))'
-    )
-    sb.add_row(r, [(0, 'Validasi Masa Pertanggungan:', 10), (1, cov_valid_formula, 9, 'f')])
-    r += 1
+    # Row 16: Nominal Tahapan per tahun
+    tahapan_nom_f = 'C15*C6/100'
+    sb.add_row(16, [(1, 'MANFAAT TAHAPAN TAHUNAN (IDR):', 10), (2, tahapan_nom_f, 9, 'f'), (3, 'Per tahun', 11)])
 
-    # Payment term validation for coverage
-    ppp_valid_formula = (
-        'IF(B9="Single","VALID",'
-        'IF(B9="5",IF(B10>5,"VALID","Coverage harus > PPP"),'
-        'IF(B10>10,"VALID","Coverage harus > PPP")))'
-    )
-    sb.add_row(r, [(0, 'Validasi PPP vs Coverage:', 10), (1, ppp_valid_formula, 9, 'f')])
-    r += 2
+    # Row 17: Mulai Pembayaran
+    # Single: yr 6, 5yr: yr 10, 10yr: yr 15
+    mulai_f = 'IF(C7="Single","Tahun ke-6",IF(C7="5 Tahun","Tahun ke-10","Tahun ke-15"))'
+    sb.add_row(17, [(1, 'MULAI PEMBAYARAN:', 10), (2, mulai_f, 12, 'f')])
 
-    # === BENEFIT CALCULATION ===
-    r = 20
-    sb.add_row(r, [(0, 'PROYEKSI MANFAAT', 5)])
-    sb.add_merge('A20:F20')
-    r += 1
+    # Row 18: Jumlah tahun pembayaran
+    # coverage_years - start_year + 1
+    # 20yr: Single=15, 5yr=11, 10yr=6; 30yr: Single=25, 5yr=21, 10yr=16
+    jml_f = 'IF(C8="20 Tahun",IF(C7="Single",15,IF(C7="5 Tahun",11,6)),IF(C7="Single",25,IF(C7="5 Tahun",21,16)))'
+    sb.add_row(18, [(1, 'JUMLAH TAHUN PEMBAYARAN:', 10), (2, jml_f, 9, 'f'), (3, 'tahun', 11)])
 
-    # Benefit percentage lookup using INDEX/MATCH from DATA sheets
-    # The formula references DATA_PLAN_A, DATA_PLAN_B, DATA_PLAN_C sheets
-    # Key in data sheets: Column A = coverage period, Column B = payment term label
-    # We use a combined lookup: MATCH(B9&"_"&B10, key_column, 0)
+    # Row 19: Total Tahapan (seluruh periode)
+    total_tahapan_f = 'C16*C18'
+    sb.add_row(19, [(1, 'TOTAL TAHAPAN (SELURUH PERIODE):', 10), (2, total_tahapan_f, 9, 'f')])
+
+    # Row 20: ADB & TPD per tahun
+    # Single: 25% * premi / masa_pertanggungan; Regular: 25% * premi
+    adb_f = 'IF(C7="Single",C6*0.25/IF(C8="20 Tahun",20,30),C6*0.25)'
+    sb.add_row(20, [(1, 'MANFAAT ADB & TPD /TAHUN:', 10), (2, adb_f, 9, 'f'), (3, '25% Premi Dasar Tahunan', 11)])
+
+    # Row 21: Total ADB
+    total_adb_f = 'C20*IF(C8="20 Tahun",20,30)'
+    sb.add_row(21, [(1, 'TOTAL ADB & TPD:', 10), (2, total_adb_f, 9, 'f')])
+
+    # Row 22: blank
+    sb.add_row(22, [])
+
+    # Row 23: TOTAL SELURUH MANFAAT
+    total_all_f = 'C19+C21'
+    sb.add_row(23, [(1, 'TOTAL SELURUH MANFAAT:', 7), (2, total_all_f, 9, 'f')])
+
+    # Row 25: Notes
+    sb.add_row(25, [(1, 'CATATAN:', 7)])
+    sb.add_row(26, [(1, '- Pilih dari dropdown di sel KUNING untuk melihat hasil otomatis', 11)])
+    sb.add_row(27, [(1, '- Gender tidak mempengaruhi benefit MDWA (unisex rate)', 11)])
+    sb.add_row(28, [(1, '- Plan A: Tahapan dibayar tahunan dari tahun mulai s/d akhir coverage', 11)])
+    sb.add_row(29, [(1, '- Banding 2: Premi >= 500 Juta (Single) atau >= 100 Juta (Regular)', 11)])
+
+    return sb.build()
+
+
+# ==============================================================
+# PLAN B SHEET - BEASISWA
+# ==============================================================
+def build_plan_b_sheet(ss_map):
+    """PLAN B sheet with own inputs and lookup table for maturity percentages.
     
-    # Tahapan (Annual Payout) percentage
-    tahapan_pct_formula = (
-        'IF(B7="A",'
-        'INDEX(DATA_PLAN_A!C:C,MATCH(B9&"_"&B10,DATA_PLAN_A!A:A,0)),'
-        'IF(B7="C",'
-        'INDEX(DATA_PLAN_C!C:C,MATCH(B9&"_"&B10,DATA_PLAN_C!A:A,0)),'
-        '0))'
-    )
-    sb.add_row(r, [(0, 'Persentase Tahapan Tahunan:', 10), (1, tahapan_pct_formula, 9, 'f'),
-                   (2, '(% dari Premi)', 11)])
-    r += 1
+    Input cells (YELLOW):
+    - C4: Jenis Kelamin (Pria/Wanita)
+    - C5: Usia Masuk
+    - C6: Premi Tahunan (IDR)
+    - C7: Masa Bayar (Single/5 Tahun/10 Tahun)
+    - C8: Masa Pertanggungan (5-15,20,30 Tahun) - varies by payment term
+    
+    Lookup table rows 50-80 for maturity percentages.
+    """
+    sb = SheetBuilder(ss_map)
+    sb.set_col_width(1, 8)
+    sb.set_col_width(2, 32)
+    sb.set_col_width(3, 28)
+    sb.set_col_width(4, 30)
+    sb.set_col_width(5, 20)
 
-    # Tahapan amount
-    tahapan_amt_formula = (
-        'IF(B7="B",0,B21*B6/100)'
-    )
-    sb.add_row(r, [(0, 'Nominal Tahapan/Tahun:', 10), (1, tahapan_amt_formula, 9, 'f'),
-                   (2, 'IDR/USD per tahun', 11)])
-    r += 1
+    # Title
+    sb.add_row(1, [(1, 'PLAN B - BEASISWA', 3)], height=28)
+    sb.add_merge('B1:D1')
+    sb.add_row(2, [(1, 'Manfaat Lump Sum di Akhir Masa Pertanggungan (Maturity)', 11)])
 
-    # Maturity percentage
-    maturity_pct_formula = (
-        'IF(B7="B",'
-        'INDEX(DATA_PLAN_B!C:C,MATCH(B9&"_"&B10,DATA_PLAN_B!A:A,0)),'
-        'IF(B7="C",'
-        'INDEX(DATA_PLAN_C!D:D,MATCH(B9&"_"&B10,DATA_PLAN_C!A:A,0)),'
-        '0))'
-    )
-    sb.add_row(r, [(0, 'Persentase Manfaat Jatuh Tempo:', 10), (1, maturity_pct_formula, 9, 'f'),
-                   (2, '(% dari Premi)', 11)])
-    r += 1
+    # INPUT section
+    sb.add_row(3, [(1, 'INPUT DATA', 5), (2, '', 5), (3, '', 5)])
+    sb.add_merge('B3:D3')
 
-    # Maturity amount
-    maturity_amt_formula = 'B23*B6/100'
-    sb.add_row(r, [(0, 'Nominal Manfaat Jatuh Tempo:', 10), (1, maturity_amt_formula, 9, 'f')])
-    r += 1
+    sb.add_row(4, [(1, 'JENIS KELAMIN:', 10), (2, 'Pria', 8)])
+    sb.add_data_validation('C4', '"Pria,Wanita"')
 
-    # Banding 2 Extra percentage
-    extra_pct_formula = (
-        'IF(B15="Banding 1",0,'
-        'IF(B7="A",'
-        'INDEX(DATA_PLAN_A!D:D,MATCH(B9&"_"&B10,DATA_PLAN_A!A:A,0)),'
-        'IF(B7="B",'
-        'INDEX(DATA_PLAN_B!D:D,MATCH(B9&"_"&B10,DATA_PLAN_B!A:A,0)),'
-        'INDEX(DATA_PLAN_C!E:E,MATCH(B9&"_"&B10,DATA_PLAN_C!A:A,0)))))'
-    )
-    sb.add_row(r, [(0, 'Banding 2 Extra (%):', 10), (1, extra_pct_formula, 9, 'f')])
-    r += 1
+    sb.add_row(5, [(1, 'USIA MASUK:', 10), (2, 30, 8, 'n')])
 
-    # Banding 2 Extra amount
-    extra_amt_formula = 'B25*B6/100'
-    sb.add_row(r, [(0, 'Banding 2 Extra (nominal):', 10), (1, extra_amt_formula, 9, 'f')])
-    r += 2
+    sb.add_row(6, [(1, 'PREMI TAHUNAN (IDR):', 10), (2, 100000000, 8, 'n')])
 
-    # Payout start year
-    r = 28
-    payout_start_formula = (
-        'IF(B7="B","N/A (lump sum di akhir)",'
-        'IF(B9="Single","Tahun ke-6",'
-        'IF(B9="5","Tahun ke-10","Tahun ke-15")))'
-    )
-    sb.add_row(r, [(0, 'Mulai Pembayaran Tahapan:', 10), (1, payout_start_formula, 9, 'f')])
-    r += 1
+    sb.add_row(7, [(1, 'MASA BAYAR:', 10), (2, 'Single', 8)])
+    sb.add_data_validation('C7', '"Single,5 Tahun,10 Tahun"')
 
-    # Number of payout years
-    payout_years_formula = (
-        'IF(B7="B",0,'
-        'IF(B9="Single",B10-5,'
-        'IF(B9="5",B10-9,B10-14)))'
-    )
-    sb.add_row(r, [(0, 'Jumlah Tahun Pembayaran:', 10), (1, payout_years_formula, 9, 'f')])
-    r += 1
+    sb.add_row(8, [(1, 'MASA PERTANGGUNGAN:', 10), (2, '10 Tahun', 8)])
+    sb.add_data_validation('C8', '"5 Tahun,6 Tahun,7 Tahun,8 Tahun,9 Tahun,10 Tahun,11 Tahun,12 Tahun,13 Tahun,14 Tahun,15 Tahun,20 Tahun,30 Tahun"')
 
-    # Total tahapan
-    total_tahapan_formula = 'IF(B7="B",0,B22*B29)'
-    sb.add_row(r, [(0, 'Total Tahapan (seluruh periode):', 10), (1, total_tahapan_formula, 9, 'f')])
-    r += 1
+    sb.add_row(9, [])
+
+    # HASIL
+    sb.add_row(10, [(1, 'HASIL PERHITUNGAN', 5), (2, '', 5), (3, '', 5)])
+    sb.add_merge('B10:D10')
+
+    # Eligibility
+    elig_f = 'IF(C7="Single",IF(C5<=85,"ELIGIBLE","TIDAK ELIGIBLE - Usia maks 85"),IF(C5<=70,"ELIGIBLE","TIDAK ELIGIBLE - Usia maks 70"))'
+    sb.add_row(11, [(1, 'STATUS KELAYAKAN:', 10), (2, elig_f, 12, 'f')])
+
+    # Banding
+    banding_f = 'IF(C7="Single",IF(C6>=500000000,"Banding 2","Banding 1"),IF(C6>=100000000,"Banding 2","Banding 1"))'
+    sb.add_row(12, [(1, 'LEVEL BANDING:', 10), (2, banding_f, 12, 'f')])
+
+    # Maturity % - uses INDEX/MATCH on lookup table rows 50+
+    # Lookup key in A50:A73 = "PayTerm_Coverage" e.g. "Single_5", "5_10", "10_15"
+    # Column B50:B73 = maturity % (Banding 1)
+    # Column C50:C73 = extra % (Banding 2)
+    # Build the key: e.g. IF(C7="Single","Single",IF(C7="5 Tahun","5","10"))&"_"&LEFT(C8,FIND(" ",C8)-1)
+    # Simpler: use nested IF since we know all values
+    
+    # Maturity % Banding 1 - giant nested IF
+    # Single: {5:110,6:115,7:120,8:125,9:130,10:135,11:140,12:145,13:150,14:155,15:160,20:200,30:325}
+    # 5yr: {10:600,11:625,12:650,13:675,14:700,15:725,20:950,30:1625}
+    # 10yr: {15:1350,20:1800,30:3250}
+    # We use INDEX/MATCH with the lookup table
+    mat_pct_f = 'INDEX(B51:B74,MATCH(IF(C7="Single","Single",IF(C7="5 Tahun","5","10"))&"_"&LEFT(C8,FIND(" ",C8)-1),A51:A74,0))'
+    sb.add_row(13, [(1, 'MANFAAT BEASISWA (%):', 10), (2, mat_pct_f, 9, 'f'), (3, '% dari Premi (Banding 1)', 11)])
+
+    # Extra %
+    extra_pct_f = 'IF(C12="Banding 2",INDEX(C51:C74,MATCH(IF(C7="Single","Single",IF(C7="5 Tahun","5","10"))&"_"&LEFT(C8,FIND(" ",C8)-1),A51:A74,0)),0)'
+    sb.add_row(14, [(1, 'BANDING 2 EXTRA (%):', 10), (2, extra_pct_f, 9, 'f'), (3, 'Tambahan jika Banding 2', 11)])
+
+    # Total %
+    total_pct_f = 'C13+C14'
+    sb.add_row(15, [(1, 'TOTAL MANFAAT BEASISWA (%):', 10), (2, total_pct_f, 9, 'f')])
+
+    # Nominal lump sum
+    nom_f = 'C15*C6/100'
+    sb.add_row(16, [(1, 'MANFAAT BEASISWA (LUMP SUM):', 10), (2, nom_f, 9, 'f'), (3, 'Dibayar di akhir coverage', 11)])
+
+    # ADB & TPD
+    adb_f = 'IF(C7="Single",C6*0.25/VALUE(LEFT(C8,FIND(" ",C8)-1)),C6*0.25)'
+    sb.add_row(17, [(1, 'MANFAAT ADB & TPD /TAHUN:', 10), (2, adb_f, 9, 'f'), (3, '25% Premi Dasar Tahunan', 11)])
+
+    # Total ADB
+    total_adb_f = 'C17*VALUE(LEFT(C8,FIND(" ",C8)-1))'
+    sb.add_row(18, [(1, 'TOTAL ADB & TPD:', 10), (2, total_adb_f, 9, 'f')])
+
+    sb.add_row(19, [])
 
     # Total benefit
-    total_benefit_formula = 'B30+B24+B26'
-    sb.add_row(r, [(0, 'TOTAL MANFAAT:', 7), (1, total_benefit_formula, 9, 'f')])
-    r += 2
+    total_f = 'C16+C18'
+    sb.add_row(20, [(1, 'TOTAL MANFAAT:', 7), (2, total_f, 9, 'f')])
 
-    # === ADB & TPD ===
-    r = 33
-    sb.add_row(r, [(0, 'MANFAAT TAMBAHAN', 5)])
-    sb.add_merge('A33:F33')
-    r += 1
+    # Notes
+    sb.add_row(22, [(1, 'CATATAN:', 7)])
+    sb.add_row(23, [(1, '- Pilih dari dropdown di sel KUNING untuk melihat hasil otomatis', 11)])
+    sb.add_row(24, [(1, '- Plan B: Manfaat lump sum dibayar di akhir masa pertanggungan', 11)])
+    sb.add_row(25, [(1, '- Single: coverage 5-15/20/30 thn; 5 Tahun: 10-15/20/30 thn; 10 Tahun: 15/20/30 thn', 11)])
+    sb.add_row(26, [(1, '- Banding 2: Premi >= 500 Juta (Single) atau >= 100 Juta (Regular)', 11)])
 
-    # ADB & TPD = 25% of annual basic premium per year
-    adb_formula = (
-        'IF(B9="Single",B6*0.25/B10,B6*0.25)'
-    )
-    sb.add_row(r, [(0, 'ADB & TPD per tahun:', 10), (1, adb_formula, 9, 'f'),
-                   (2, '25% of Annual Basic Premium', 11)])
-    r += 1
+    # ============ LOOKUP TABLE (hidden rows 50+) ============
+    sb.add_row(49, [(0, 'TABEL REFERENSI (JANGAN DIUBAH)', 7)])
+    sb.add_row(50, [(0, 'Key', 1), (1, 'Maturity % (B1)', 1), (2, 'Extra % (B2)', 1)])
 
-    total_adb_formula = 'B34*B10'
-    sb.add_row(r, [(0, 'Total ADB & TPD (full coverage):', 10), (1, total_adb_formula, 9, 'f')])
-    r += 2
+    # Plan B lookup data - starts at row 51
+    plan_b_lookup = [
+        # Single Premium coverage options
+        ('Single_5', 110, 1.5),
+        ('Single_6', 115, 1.8),
+        ('Single_7', 120, 2.1),
+        ('Single_8', 125, 2.4),
+        ('Single_9', 130, 2.7),
+        ('Single_10', 135, 3),
+        ('Single_11', 140, 3.3),
+        ('Single_12', 145, 3.6),
+        ('Single_13', 150, 3.9),
+        ('Single_14', 155, 4.2),
+        ('Single_15', 160, 4.5),
+        ('Single_20', 200, 6),
+        ('Single_30', 325, 9),
+        # PPP 5 Tahun
+        ('5_10', 600, 15),
+        ('5_11', 625, 16.5),
+        ('5_12', 650, 18),
+        ('5_13', 675, 19.5),
+        ('5_14', 700, 21),
+        ('5_15', 725, 22.5),
+        ('5_20', 950, 30),
+        ('5_30', 1625, 45),
+        # PPP 10 Tahun
+        ('10_15', 1350, 45),
+        ('10_20', 1800, 60),
+        ('10_30', 3250, 90),
+    ]
 
-    # === MODE PEMBAYARAN ===
-    r = 37
-    sb.add_row(r, [(0, 'KONVERSI MODE PEMBAYARAN', 5)])
-    sb.add_merge('A37:F37')
-    r += 1
-
-    # Mode factor formulas
-    mode_tahunan_formula = 'B6'
-    sb.add_row(r, [(0, 'Premi Tahunan:', 10), (1, mode_tahunan_formula, 9, 'f')])
-    r += 1
-
-    mode_semester_formula = 'IF(B8="IDR",B6*0.525,B6*0.5125)'
-    sb.add_row(r, [(0, 'Premi Semesteran:', 10), (1, mode_semester_formula, 9, 'f'),
-                   (2, 'IDR 52.5% / USD 51.25%', 11)])
-    r += 1
-
-    mode_triwulan_formula = 'IF(B8="IDR",B6*0.275,B6*0.265)'
-    sb.add_row(r, [(0, 'Premi Triwulanan:', 10), (1, mode_triwulan_formula, 9, 'f'),
-                   (2, 'IDR 27.5% / USD 26.5%', 11)])
-    r += 1
-
-    mode_bulanan_formula = 'IF(B8="IDR",B6*0.095,B6*0.09)'
-    sb.add_row(r, [(0, 'Premi Bulanan:', 10), (1, mode_bulanan_formula, 9, 'f'),
-                   (2, 'IDR 9.5% / USD 9%', 11)])
-    r += 2
-
-    # === NOTES ===
-    r = 43
-    sb.add_row(r, [(0, 'CATATAN:', 7)])
-    r += 1
-    sb.add_row(r, [(0, '- Ubah nilai di sel berwarna KUNING untuk melihat hasil otomatis', 11)])
-    r += 1
-    sb.add_row(r, [(0, '- Plan A (Anuitas): Tahapan tahunan, coverage 20/30 tahun', 11)])
-    r += 1
-    sb.add_row(r, [(0, '- Plan B (Beasiswa): Lump sum jatuh tempo, coverage 5-15/20/30 tahun', 11)])
-    r += 1
-    sb.add_row(r, [(0, '- Plan C (Combo): Tahapan + jatuh tempo, coverage 10/15/20/30 tahun', 11)])
-    r += 1
-    sb.add_row(r, [(0, '- Lihat sheet DATA_PLAN_A/B/C untuk tabel referensi lengkap', 11)])
-    r += 1
-    sb.add_row(r, [(0, '- Usia masuk: Single 30 hari-85 thn, Regular 30 hari-70 thn', 11)])
-    r += 1
-    sb.add_row(r, [(0, '- Gender mempengaruhi underwriting namun TIDAK mempengaruhi benefit MDWA (unisex rate)', 11)])
+    for i, (key, mat, extra) in enumerate(plan_b_lookup):
+        row = 51 + i
+        sb.add_row(row, [(0, key, 2), (1, mat, 6, 'n'), (2, extra, 6, 'n')])
 
     return sb.build()
 
 
-
-def build_data_plan_a_sheet(ss_map):
-    """Sheet 2: DATA_PLAN_A - Reference data for Plan A (Anuitas) benefits.
+# ==============================================================
+# PLAN C SHEET - COMBO
+# ==============================================================
+def build_plan_c_sheet(ss_map):
+    """PLAN C sheet with own inputs and lookup tables.
     
-    Layout:
-    Column A: Key (PaymentTerm_CoveragePeriod) e.g. "Single_20", "5_30", "10_20"
-    Column B: Payment Term label
-    Column C: Tahapan % (Banding 1 IDR)
-    Column D: Banding 2 Extra % (IDR)
-    Column E: Tahapan % (Banding 1 USD)
-    Column F: Banding 2 Extra % (USD)
-    Column G: Payout Start Year
+    Input cells (YELLOW):
+    - C4: Jenis Kelamin
+    - C5: Usia Masuk
+    - C6: Premi Tahunan (IDR)
+    - C7: Masa Bayar (Single/5 Tahun/10 Tahun)
+    - C8: Masa Pertanggungan (10/15/20/30 Tahun)
+    
+    Results: Tahapan + Maturity + ADB
+    Lookup table rows 50+ for percentages.
     """
     sb = SheetBuilder(ss_map)
-    sb.set_col_width(1, 18)
-    sb.set_col_width(2, 18)
-    sb.set_col_width(3, 20)
-    sb.set_col_width(4, 20)
-    sb.set_col_width(5, 20)
-    sb.set_col_width(6, 20)
-    sb.set_col_width(7, 18)
-
-    r = 1
-    sb.add_row(r, [(0, 'DATA PLAN A - ANUITAS (Tabel Referensi)', 5)])
-    sb.add_merge('A1:G1')
-    r += 2
-
-    # Header
-    sb.add_row(r, [
-        (0, 'Key', 1), (1, 'Masa Bayar', 1), (2, 'Tahapan % IDR (B1)', 1),
-        (3, 'Extra % IDR (B2)', 1), (4, 'Tahapan % USD (B1)', 1),
-        (5, 'Extra % USD (B2)', 1), (6, 'Mulai Bayar', 1)
-    ])
-    r += 1
-
-    # Plan A data: Coverage 20yr and 30yr for Single, 5yr, 10yr
-    plan_a_data = [
-        # (key, term_label, tahapan_idr, extra_idr, tahapan_usd, extra_usd, start_yr)
-        ('Single_20', 'Single', 9.5, 6, 8.25, 3, 6),
-        ('Single_30', 'Single', 7, 9, 5.5, 4.5, 6),
-        ('5_20', '5 Tahun', 65, 30, 55, 15, 10),
-        ('5_30', '5 Tahun', 40, 45, 32.5, 22.5, 10),
-        ('10_20', '10 Tahun', 235, 60, 205, 30, 15),
-        ('10_30', '10 Tahun', 105, 90, 85, 45, 15),
-    ]
-
-    for key, term, t_idr, e_idr, t_usd, e_usd, start in plan_a_data:
-        sb.add_row(r, [
-            (0, key, 2), (1, term, 2), (2, t_idr, 6, 'n'),
-            (3, e_idr, 6, 'n'), (4, t_usd, 6, 'n'),
-            (5, e_usd, 6, 'n'), (6, start, 6, 'n')
-        ])
-        r += 1
-
-    r += 2
-    # Additional info
-    sb.add_row(r, [(0, 'JADWAL PEMBAYARAN TAHAPAN', 7)])
-    r += 1
-    sb.add_row(r, [(0, 'Single: Mulai akhir tahun ke-6 s/d akhir masa pertanggungan', 0)])
-    r += 1
-    sb.add_row(r, [(0, 'PPP 5: Mulai akhir tahun ke-10 s/d akhir masa pertanggungan', 0)])
-    r += 1
-    sb.add_row(r, [(0, 'PPP 10: Mulai akhir tahun ke-15 s/d akhir masa pertanggungan', 0)])
-    r += 2
-    sb.add_row(r, [(0, 'CATATAN:', 7)])
-    r += 1
-    sb.add_row(r, [(0, 'Tahapan = % x Premi, dibayar setiap tahun dari start sampai akhir coverage', 0)])
-    r += 1
-    sb.add_row(r, [(0, 'Banding 2 Extra = tambahan % untuk premi >= IDR 500M (Single) atau >= IDR 100M (Regular)', 0)])
-
-    return sb.build()
-
-
-
-def build_data_plan_b_sheet(ss_map):
-    """Sheet 3: DATA_PLAN_B - Reference data for Plan B (Beasiswa) benefits.
-    
-    Column A: Key (PaymentTerm_CoveragePeriod)
-    Column B: Payment Term label
-    Column C: Maturity % (Banding 1 IDR)
-    Column D: Banding 2 Extra % (IDR)
-    Column E: Maturity % (Banding 1 USD)
-    Column F: Banding 2 Extra % (USD)
-    """
-    sb = SheetBuilder(ss_map)
-    sb.set_col_width(1, 18)
-    sb.set_col_width(2, 18)
-    sb.set_col_width(3, 22)
-    sb.set_col_width(4, 22)
-    sb.set_col_width(5, 22)
-    sb.set_col_width(6, 22)
-
-    r = 1
-    sb.add_row(r, [(0, 'DATA PLAN B - BEASISWA (Tabel Referensi)', 5)])
-    sb.add_merge('A1:F1')
-    r += 2
-
-    # Header
-    sb.add_row(r, [
-        (0, 'Key', 1), (1, 'Masa Bayar', 1), (2, 'Maturity % IDR (B1)', 1),
-        (3, 'Extra % IDR (B2)', 1), (4, 'Maturity % USD (B1)', 1),
-        (5, 'Extra % USD (B2)', 1)
-    ])
-    r += 1
-
-    # Plan B data
-    plan_b_data = [
-        # Single Premium
-        ('Single_5', 'Single', 110, 1.5, 105, 0.75),
-        ('Single_6', 'Single', 115, 1.8, 106, 0.9),
-        ('Single_7', 'Single', 120, 2.1, 108, 1.05),
-        ('Single_8', 'Single', 125, 2.4, 110, 1.2),
-        ('Single_9', 'Single', 130, 2.7, 112, 1.35),
-        ('Single_10', 'Single', 135, 3, 114, 1.5),
-        ('Single_11', 'Single', 140, 3.3, 116, 1.65),
-        ('Single_12', 'Single', 145, 3.6, 120, 1.8),
-        ('Single_13', 'Single', 150, 3.9, 125, 1.95),
-        ('Single_14', 'Single', 155, 4.2, 130, 2.1),
-        ('Single_15', 'Single', 160, 4.5, 135, 2.25),
-        ('Single_20', 'Single', 200, 6, 160, 3),
-        ('Single_30', 'Single', 325, 9, 200, 4.5),
-        # PPP 5
-        ('5_10', '5 Tahun', 600, 15, 535, 7.5),
-        ('5_11', '5 Tahun', 625, 16.5, 545, 8.25),
-        ('5_12', '5 Tahun', 650, 18, 555, 9),
-        ('5_13', '5 Tahun', 675, 19.5, 565, 9.75),
-        ('5_14', '5 Tahun', 700, 21, 575, 10.5),
-        ('5_15', '5 Tahun', 725, 22.5, 600, 11.25),
-        ('5_20', '5 Tahun', 950, 30, 700, 15),
-        ('5_30', '5 Tahun', 1625, 45, 950, 22.5),
-        # PPP 10
-        ('10_15', '10 Tahun', 1350, 45, 1175, 22.5),
-        ('10_20', '10 Tahun', 1800, 60, 1350, 30),
-        ('10_30', '10 Tahun', 3250, 90, 1800, 45),
-    ]
-
-    for key, term, mat_idr, ext_idr, mat_usd, ext_usd in plan_b_data:
-        sb.add_row(r, [
-            (0, key, 2), (1, term, 2), (2, mat_idr, 6, 'n'),
-            (3, ext_idr, 6, 'n'), (4, mat_usd, 6, 'n'),
-            (5, ext_usd, 6, 'n')
-        ])
-        r += 1
-
-    return sb.build()
-
-
-
-def build_data_plan_c_sheet(ss_map):
-    """Sheet 4: DATA_PLAN_C - Reference data for Plan C (Combo) benefits.
-    
-    Column A: Key (PaymentTerm_CoveragePeriod)
-    Column B: Payment Term label
-    Column C: Tahapan % (Banding 1 IDR)
-    Column D: Maturity % (Banding 1 IDR)
-    Column E: Banding 2 Extra Maturity % (IDR)
-    Column F: Tahapan % (Banding 1 USD)
-    Column G: Maturity % (Banding 1 USD)
-    Column H: Banding 2 Extra Maturity % (USD)
-    """
-    sb = SheetBuilder(ss_map)
-    for i in range(1, 9):
-        sb.set_col_width(i, 18)
-
-    r = 1
-    sb.add_row(r, [(0, 'DATA PLAN C - COMBO (Tabel Referensi)', 5)])
-    sb.add_merge('A1:H1')
-    r += 2
-
-    # Header
-    sb.add_row(r, [
-        (0, 'Key', 1), (1, 'Masa Bayar', 1), (2, 'Tahapan % IDR', 1),
-        (3, 'Maturity % IDR', 1), (4, 'Extra Mat % IDR', 1),
-        (5, 'Tahapan % USD', 1), (6, 'Maturity % USD', 1),
-        (7, 'Extra Mat % USD', 1)
-    ])
-    r += 1
-
-    # Plan C data
-    plan_c_data = [
-        # Single Premium
-        ('Single_10', 'Single', 2, 105, 3, 1, 100, 1),
-        ('Single_15', 'Single', 2, 120, 5, 1, 110, 2.25),
-        ('Single_20', 'Single', 2, 135, 6, 1, 120, 3),
-        ('Single_30', 'Single', 2, 170, 9, 1, 140, 5),
-        # PPP 5
-        ('5_10', '5 Tahun', 13.5, 510, 15, 5, 500, 8),
-        ('5_15', '5 Tahun', 17.5, 510, 23, 8, 500, 11.25),
-        ('5_20', '5 Tahun', 20, 510, 30, 11, 500, 15),
-        ('5_30', '5 Tahun', 20, 510, 45, 11, 500, 23),
-        # PPP 10
-        ('10_15', '10 Tahun', 40, 1000, 45, 20, 1000, 23),
-        ('10_20', '10 Tahun', 40, 1100, 60, 20, 1100, 30),
-        ('10_30', '10 Tahun', 40, 1200, 90, 20, 1150, 45),
-    ]
-
-    for key, term, t_idr, m_idr, e_idr, t_usd, m_usd, e_usd in plan_c_data:
-        sb.add_row(r, [
-            (0, key, 2), (1, term, 2), (2, t_idr, 6, 'n'),
-            (3, m_idr, 6, 'n'), (4, e_idr, 6, 'n'),
-            (5, t_usd, 6, 'n'), (6, m_usd, 6, 'n'),
-            (7, e_usd, 6, 'n')
-        ])
-        r += 1
-
-    r += 2
-    sb.add_row(r, [(0, 'JADWAL PEMBAYARAN TAHAPAN PLAN C', 7)])
-    r += 1
-    sb.add_row(r, [(0, 'Single: Mulai akhir tahun ke-1 s/d akhir masa pertanggungan', 0)])
-    r += 1
-    sb.add_row(r, [(0, 'PPP 5: Mulai akhir tahun ke-5 s/d akhir masa pertanggungan', 0)])
-    r += 1
-    sb.add_row(r, [(0, 'PPP 10: Mulai akhir tahun ke-10 s/d akhir masa pertanggungan', 0)])
-
-    return sb.build()
-
-
-
-def build_komisi_sheet(ss_map):
-    """Sheet 5: KOMISI - Commission Structure."""
-    sb = SheetBuilder(ss_map)
-    sb.set_col_width(1, 20)
-    sb.set_col_width(2, 18)
-    sb.set_col_width(3, 15)
-    sb.set_col_width(4, 15)
-
-    r = 1
-    sb.add_row(r, [(0, 'STRUKTUR KOMISI MDWA', 5)])
-    sb.add_merge('A1:D1')
-    r += 2
-
-    # Plan A Commission
-    sb.add_row(r, [(0, 'PLAN A - ANUITAS', 7)])
-    r += 1
-    sb.add_row(r, [(0, 'Term', 1), (1, 'Coverage', 1), (2, 'Year 1', 1), (3, 'Year 2', 1)])
-    r += 1
-    plan_a_data = [
-        ('Single', '20yr', '4%', '-'),
-        ('Single', '30yr', '4%', '-'),
-        ('5 Pay', '20yr', '5%', '5%'),
-        ('5 Pay', '30yr', '5%', '5%'),
-        ('10 Pay', '20yr', '15%', '10%'),
-        ('10 Pay', '30yr', '15%', '10%'),
-    ]
-    for term, cov, y1, y2 in plan_a_data:
-        sb.add_row(r, [(0, term, 2), (1, cov, 2), (2, y1, 2), (3, y2, 2)])
-        r += 1
-    r += 1
-
-    # Plan B Commission
-    sb.add_row(r, [(0, 'PLAN B - BEASISWA', 7)])
-    r += 1
-    sb.add_row(r, [(0, 'Term', 1), (1, 'Coverage', 1), (2, 'Year 1', 1), (3, 'Year 2', 1)])
-    r += 1
-    plan_b_data = [
-        ('Single', '5-10yr', '2%', '-'),
-        ('Single', '11-15yr', '5%', '-'),
-        ('Single', '20yr', '5%', '-'),
-        ('Single', '30yr', '6%', '-'),
-        ('5 Pay', '5-10yr', '7.5%', '5%'),
-        ('5 Pay', '11-15yr', '7.5%', '5%'),
-        ('5 Pay', '20yr', '10%', '5%'),
-        ('5 Pay', '30yr', '10%', '5%'),
-        ('10 Pay', 'all', '15%', '10%'),
-    ]
-    for term, cov, y1, y2 in plan_b_data:
-        sb.add_row(r, [(0, term, 2), (1, cov, 2), (2, y1, 2), (3, y2, 2)])
-        r += 1
-    r += 1
-
-    # Plan C Commission
-    sb.add_row(r, [(0, 'PLAN C - COMBO', 7)])
-    r += 1
-    sb.add_row(r, [(0, 'Term', 1), (1, 'Coverage', 1), (2, 'Year 1', 1), (3, 'Year 2', 1)])
-    r += 1
-    plan_c_data = [
-        ('Single', '10yr', '2%', '-'),
-        ('Single', '15yr', '2%', '-'),
-        ('Single', '20yr', '4%', '-'),
-        ('Single', '30yr', '6%', '-'),
-        ('5 Pay', '10yr', '5%', '5%'),
-        ('5 Pay', '15yr', '7.5%', '5%'),
-        ('5 Pay', '20yr', '10%', '5%'),
-        ('5 Pay', '30yr', '12.5%', '5%'),
-        ('10 Pay', 'all', '15%', '10%'),
-    ]
-    for term, cov, y1, y2 in plan_c_data:
-        sb.add_row(r, [(0, term, 2), (1, cov, 2), (2, y1, 2), (3, y2, 2)])
-        r += 1
-
-    return sb.build()
-
-
-
-def build_perbandingan_sheet(ss_map):
-    """Sheet 6: PERBANDINGAN - Comparison vs Competitors."""
-    sb = SheetBuilder(ss_map)
-    for i in range(1, 8):
-        sb.set_col_width(i, 18)
-
-    r = 1
-    sb.add_row(r, [(0, 'PERBANDINGAN vs KOMPETITOR', 5)])
-    sb.add_merge('A1:G1')
-    r += 2
-
-    sb.add_row(r, [(0, 'PPP 5 Tahun, Band 2, Premi Tahunan IDR 100 Juta', 7)])
-    r += 2
-
-    # Header
-    sb.add_row(r, [(0, 'Feature', 1), (1, 'MDWA 15yr', 1), (2, 'MDWA 20yr', 1),
-                   (3, 'MSP 15yr', 1), (4, 'MSP 20yr', 1), (5, 'FI 15yr', 1), (6, 'FI 20yr', 1)])
-    r += 1
-    sb.add_row(r, [(0, 'Tahapan/Tahun', 2), (1, '17.5M x 11', 2), (2, '20M x 16', 2),
-                   (3, '17.5M x 11', 2), (4, '20M x 16', 2), (5, '20M x 10', 2), (6, '20M x 15', 2)])
-    r += 1
-    sb.add_row(r, [(0, 'Total Tahapan', 2), (1, '192.5M', 2), (2, '320M', 2),
-                   (3, '192.5M', 2), (4, '320M', 2), (5, '200M', 2), (6, '300M', 2)])
-    r += 1
-    sb.add_row(r, [(0, 'Maturity', 2), (1, '532.5M', 2), (2, '540M', 2),
-                   (3, '500M', 2), (4, '500M', 2), (5, '500M', 2), (6, '525M', 2)])
-    r += 1
-    sb.add_row(r, [(0, 'Total Benefit', 4), (1, '725M', 4), (2, '860M', 4),
-                   (3, '692.5M', 4), (4, '820M', 4), (5, '700M', 4), (6, '825M', 4)])
-    r += 1
-    sb.add_row(r, [(0, 'Rasio Benefit', 4), (1, '145%', 4), (2, '172%', 4),
-                   (3, '139%', 4), (4, '164%', 4), (5, '140%', 4), (6, '165%', 4)])
-    r += 2
-
-    sb.add_row(r, [(0, 'Catatan:', 7)])
-    r += 1
-    sb.add_row(r, [(0, 'MSP = Manulife Saver Plus (produk lama)', 0)])
-    r += 1
-    sb.add_row(r, [(0, 'FI = Flexi Income (kompetitor)', 0)])
-    r += 1
-    sb.add_row(r, [(0, 'Rasio Benefit = Total Benefit / Total Premi (5 tahun x IDR 100 Juta = IDR 500 Juta)', 0)])
-    r += 2
-    sb.add_row(r, [(0, 'MDWA memberikan rasio benefit tertinggi di kedua masa pertanggungan.', 7)])
-
-    return sb.build()
-
-
-
-def build_overview_sheet(ss_map):
-    """Sheet 7: OVERVIEW - Product Summary."""
-    sb = SheetBuilder(ss_map)
-    sb.set_col_width(1, 25)
-    sb.set_col_width(2, 30)
-    sb.set_col_width(3, 30)
+    sb.set_col_width(1, 8)
+    sb.set_col_width(2, 36)
+    sb.set_col_width(3, 28)
     sb.set_col_width(4, 30)
+    sb.set_col_width(5, 20)
+
+    # Title
+    sb.add_row(1, [(1, 'PLAN C - COMBO', 3)], height=28)
+    sb.add_merge('B1:D1')
+    sb.add_row(2, [(1, 'Manfaat Tahapan Tahunan + Lump Sum Jatuh Tempo', 11)])
+
+    # INPUT section
+    sb.add_row(3, [(1, 'INPUT DATA', 5), (2, '', 5), (3, '', 5)])
+    sb.add_merge('B3:D3')
+
+    sb.add_row(4, [(1, 'JENIS KELAMIN:', 10), (2, 'Pria', 8)])
+    sb.add_data_validation('C4', '"Pria,Wanita"')
+
+    sb.add_row(5, [(1, 'USIA MASUK:', 10), (2, 30, 8, 'n')])
+
+    sb.add_row(6, [(1, 'PREMI TAHUNAN (IDR):', 10), (2, 100000000, 8, 'n')])
+
+    sb.add_row(7, [(1, 'MASA BAYAR:', 10), (2, 'Single', 8)])
+    sb.add_data_validation('C7', '"Single,5 Tahun,10 Tahun"')
+
+    sb.add_row(8, [(1, 'MASA PERTANGGUNGAN:', 10), (2, '20 Tahun', 8)])
+    sb.add_data_validation('C8', '"10 Tahun,15 Tahun,20 Tahun,30 Tahun"')
+
+    sb.add_row(9, [])
+
+    # HASIL
+    sb.add_row(10, [(1, 'HASIL PERHITUNGAN', 5), (2, '', 5), (3, '', 5)])
+    sb.add_merge('B10:D10')
+
+    # Eligibility
+    elig_f = 'IF(C7="Single",IF(C5<=85,"ELIGIBLE","TIDAK ELIGIBLE - Usia maks 85"),IF(C5<=70,"ELIGIBLE","TIDAK ELIGIBLE - Usia maks 70"))'
+    sb.add_row(11, [(1, 'STATUS KELAYAKAN:', 10), (2, elig_f, 12, 'f')])
+
+    # Banding
+    banding_f = 'IF(C7="Single",IF(C6>=500000000,"Banding 2","Banding 1"),IF(C6>=100000000,"Banding 2","Banding 1"))'
+    sb.add_row(12, [(1, 'LEVEL BANDING:', 10), (2, banding_f, 12, 'f')])
+
+    # Tahapan % - INDEX/MATCH from lookup table
+    # Key format: "Single_10", "5_15", "10_20" etc.
+    tahapan_pct_f = 'INDEX(B51:B61,MATCH(IF(C7="Single","Single",IF(C7="5 Tahun","5","10"))&"_"&LEFT(C8,FIND(" ",C8)-1),A51:A61,0))'
+    sb.add_row(13, [(1, 'MANFAAT TAHAPAN TAHUNAN (%):', 10), (2, tahapan_pct_f, 9, 'f'), (3, '% dari Premi (Banding 1)', 11)])
+
+    # Tahapan nominal
+    tahapan_nom_f = 'C13*C6/100'
+    sb.add_row(14, [(1, 'MANFAAT TAHAPAN TAHUNAN (IDR):', 10), (2, tahapan_nom_f, 9, 'f'), (3, 'Per tahun', 11)])
+
+    # Maturity %
+    mat_pct_f = 'INDEX(C51:C61,MATCH(IF(C7="Single","Single",IF(C7="5 Tahun","5","10"))&"_"&LEFT(C8,FIND(" ",C8)-1),A51:A61,0))'
+    sb.add_row(15, [(1, 'MANFAAT AKHIR MASA PERTANGGUNGAN (%):', 10), (2, mat_pct_f, 9, 'f'), (3, '% dari Premi (Banding 1)', 11)])
+
+    # Maturity nominal
+    mat_nom_f = 'C15*C6/100'
+    sb.add_row(16, [(1, 'MANFAAT AKHIR MASA PERTANGGUNGAN (IDR):', 10), (2, mat_nom_f, 9, 'f')])
+
+    # Banding 2 Extra (maturity only)
+    extra_pct_f = 'IF(C12="Banding 2",INDEX(D51:D61,MATCH(IF(C7="Single","Single",IF(C7="5 Tahun","5","10"))&"_"&LEFT(C8,FIND(" ",C8)-1),A51:A61,0)),0)'
+    sb.add_row(17, [(1, 'BANDING 2 EXTRA MATURITY (%):', 10), (2, extra_pct_f, 9, 'f'), (3, 'Tambahan jika Banding 2', 11)])
+
+    # Extra nominal
+    extra_nom_f = 'C17*C6/100'
+    sb.add_row(18, [(1, 'BANDING 2 EXTRA (IDR):', 10), (2, extra_nom_f, 9, 'f')])
+
+    # Mulai Pembayaran Tahapan
+    # Single: yr 1, 5yr: yr 5, 10yr: yr 10
+    mulai_f = 'IF(C7="Single","Tahun ke-1",IF(C7="5 Tahun","Tahun ke-5","Tahun ke-10"))'
+    sb.add_row(19, [(1, 'MULAI PEMBAYARAN TAHAPAN:', 10), (2, mulai_f, 12, 'f')])
+
+    # Jumlah tahun pembayaran tahapan
+    # coverage - start + 1: Single: cov-0=cov, 5yr: cov-4, 10yr: cov-9
+    jml_f = 'IF(C7="Single",VALUE(LEFT(C8,FIND(" ",C8)-1)),IF(C7="5 Tahun",VALUE(LEFT(C8,FIND(" ",C8)-1))-4,VALUE(LEFT(C8,FIND(" ",C8)-1))-9))'
+    sb.add_row(20, [(1, 'JUMLAH TAHUN PEMBAYARAN:', 10), (2, jml_f, 9, 'f'), (3, 'tahun', 11)])
+
+    # Total Tahapan
+    total_tahapan_f = 'C14*C20'
+    sb.add_row(21, [(1, 'TOTAL TAHAPAN (SELURUH PERIODE):', 10), (2, total_tahapan_f, 9, 'f')])
+
+    # ADB & TPD
+    adb_f = 'IF(C7="Single",C6*0.25/VALUE(LEFT(C8,FIND(" ",C8)-1)),C6*0.25)'
+    sb.add_row(22, [(1, 'MANFAAT ADB & TPD /TAHUN:', 10), (2, adb_f, 9, 'f'), (3, '25% Premi Dasar Tahunan', 11)])
+
+    # Total ADB
+    total_adb_f = 'C22*VALUE(LEFT(C8,FIND(" ",C8)-1))'
+    sb.add_row(23, [(1, 'TOTAL ADB & TPD:', 10), (2, total_adb_f, 9, 'f')])
+
+    sb.add_row(24, [])
+
+    # Total benefit
+    total_f = 'C21+C16+C18+C23'
+    sb.add_row(25, [(1, 'TOTAL SELURUH MANFAAT:', 7), (2, total_f, 9, 'f')])
+
+    # Notes
+    sb.add_row(27, [(1, 'CATATAN:', 7)])
+    sb.add_row(28, [(1, '- Pilih dari dropdown di sel KUNING untuk melihat hasil otomatis', 11)])
+    sb.add_row(29, [(1, '- Plan C: Gabungan tahapan tahunan + lump sum di akhir', 11)])
+    sb.add_row(30, [(1, '- Single: mulai tahun ke-1; 5 Tahun: mulai tahun ke-5; 10 Tahun: mulai tahun ke-10', 11)])
+    sb.add_row(31, [(1, '- Banding 2: Premi >= 500 Juta (Single) atau >= 100 Juta (Regular)', 11)])
+
+    # ============ LOOKUP TABLE (rows 50+) ============
+    sb.add_row(49, [(0, 'TABEL REFERENSI (JANGAN DIUBAH)', 7)])
+    # Columns: A=Key, B=Tahapan%, C=Maturity%, D=Extra Maturity% (B2)
+    sb.add_row(50, [(0, 'Key', 1), (1, 'Tahapan %', 1), (2, 'Maturity %', 1), (3, 'Extra Mat %', 1)])
+
+    plan_c_lookup = [
+        # Single
+        ('Single_10', 2, 105, 3),
+        ('Single_15', 2, 120, 5),
+        ('Single_20', 2, 135, 6),
+        ('Single_30', 2, 170, 9),
+        # PPP 5
+        ('5_10', 13.5, 510, 15),
+        ('5_15', 17.5, 510, 23),
+        ('5_20', 20, 510, 30),
+        ('5_30', 20, 510, 45),
+        # PPP 10
+        ('10_15', 40, 1000, 45),
+        ('10_20', 40, 1100, 60),
+        ('10_30', 40, 1200, 90),
+    ]
+
+    for i, (key, tahapan, maturity, extra) in enumerate(plan_c_lookup):
+        row = 51 + i
+        sb.add_row(row, [(0, key, 2), (1, tahapan, 6, 'n'), (2, maturity, 6, 'n'), (3, extra, 6, 'n')])
+
+    return sb.build()
+
+
+# ==============================================================
+# KOMISI SHEET
+# ==============================================================
+def build_komisi_sheet(ss_map):
+    """Commission structure for all 3 plans."""
+    sb = SheetBuilder(ss_map)
+    sb.set_col_width(1, 8)
+    sb.set_col_width(2, 20)
+    sb.set_col_width(3, 18)
+    sb.set_col_width(4, 15)
+    sb.set_col_width(5, 15)
 
     r = 1
-    sb.add_row(r, [(0, 'MANULIFE DYNAMIC WEALTH ASSURANCE (MDWA)', 5)])
-    sb.add_merge('A1:D1')
+    sb.add_row(r, [(1, 'STRUKTUR KOMISI MDWA', 5), (2, '', 5), (3, '', 5), (4, '', 5)])
+    sb.add_merge('B1:E1')
+    r += 2
+
+    # Plan A
+    sb.add_row(r, [(1, 'PLAN A - ANUITAS', 7)])
     r += 1
-    sb.add_row(r, [(0, 'Perbandingan 3 Plan MDWA', 3)])
+    sb.add_row(r, [(1, 'Masa Bayar', 1), (2, 'Coverage', 1), (3, 'Tahun 1', 1), (4, 'Tahun 2', 1)])
+    r += 1
+    for term, cov, y1, y2 in [
+        ('Single', '20 thn', '4%', '-'),
+        ('Single', '30 thn', '4%', '-'),
+        ('5 Tahun', '20 thn', '5%', '5%'),
+        ('5 Tahun', '30 thn', '5%', '5%'),
+        ('10 Tahun', '20 thn', '15%', '10%'),
+        ('10 Tahun', '30 thn', '15%', '10%'),
+    ]:
+        sb.add_row(r, [(1, term, 2), (2, cov, 2), (3, y1, 2), (4, y2, 2)])
+        r += 1
+    r += 1
+
+    # Plan B
+    sb.add_row(r, [(1, 'PLAN B - BEASISWA', 7)])
+    r += 1
+    sb.add_row(r, [(1, 'Masa Bayar', 1), (2, 'Coverage', 1), (3, 'Tahun 1', 1), (4, 'Tahun 2', 1)])
+    r += 1
+    for term, cov, y1, y2 in [
+        ('Single', '5-10 thn', '2%', '-'),
+        ('Single', '11-15 thn', '5%', '-'),
+        ('Single', '20 thn', '5%', '-'),
+        ('Single', '30 thn', '6%', '-'),
+        ('5 Tahun', '5-15 thn', '7.5%', '5%'),
+        ('5 Tahun', '20 thn', '10%', '5%'),
+        ('5 Tahun', '30 thn', '10%', '5%'),
+        ('10 Tahun', 'semua', '15%', '10%'),
+    ]:
+        sb.add_row(r, [(1, term, 2), (2, cov, 2), (3, y1, 2), (4, y2, 2)])
+        r += 1
+    r += 1
+
+    # Plan C
+    sb.add_row(r, [(1, 'PLAN C - COMBO', 7)])
+    r += 1
+    sb.add_row(r, [(1, 'Masa Bayar', 1), (2, 'Coverage', 1), (3, 'Tahun 1', 1), (4, 'Tahun 2', 1)])
+    r += 1
+    for term, cov, y1, y2 in [
+        ('Single', '10 thn', '2%', '-'),
+        ('Single', '15 thn', '2%', '-'),
+        ('Single', '20 thn', '4%', '-'),
+        ('Single', '30 thn', '6%', '-'),
+        ('5 Tahun', '10 thn', '5%', '5%'),
+        ('5 Tahun', '15 thn', '7.5%', '5%'),
+        ('5 Tahun', '20 thn', '10%', '5%'),
+        ('5 Tahun', '30 thn', '12.5%', '5%'),
+        ('10 Tahun', 'semua', '15%', '10%'),
+    ]:
+        sb.add_row(r, [(1, term, 2), (2, cov, 2), (3, y1, 2), (4, y2, 2)])
+        r += 1
+
+    return sb.build()
+
+
+# ==============================================================
+# PERBANDINGAN SHEET
+# ==============================================================
+def build_perbandingan_sheet(ss_map):
+    """Comparison vs competitors."""
+    sb = SheetBuilder(ss_map)
+    sb.set_col_width(1, 8)
+    for i in range(2, 9):
+        sb.set_col_width(i, 18)
+
+    r = 1
+    sb.add_row(r, [(1, 'PERBANDINGAN vs KOMPETITOR', 5)])
+    sb.add_merge('B1:H1')
+    r += 2
+
+    sb.add_row(r, [(1, 'Contoh: PPP 5 Tahun, Banding 2, Premi Tahunan IDR 100 Juta', 7)])
+    r += 2
+
+    sb.add_row(r, [(1, 'Fitur', 1), (2, 'MDWA 15yr', 1), (3, 'MDWA 20yr', 1),
+                   (4, 'MSP 15yr', 1), (5, 'MSP 20yr', 1), (6, 'FI 15yr', 1), (7, 'FI 20yr', 1)])
+    r += 1
+    sb.add_row(r, [(1, 'Tahapan/Tahun', 2), (2, '17.5M x 11', 2), (3, '20M x 16', 2),
+                   (4, '17.5M x 11', 2), (5, '20M x 16', 2), (6, '20M x 10', 2), (7, '20M x 15', 2)])
+    r += 1
+    sb.add_row(r, [(1, 'Total Tahapan', 2), (2, '192.5M', 2), (3, '320M', 2),
+                   (4, '192.5M', 2), (5, '320M', 2), (6, '200M', 2), (7, '300M', 2)])
+    r += 1
+    sb.add_row(r, [(1, 'Maturity', 2), (2, '532.5M', 2), (3, '540M', 2),
+                   (4, '500M', 2), (5, '500M', 2), (6, '500M', 2), (7, '525M', 2)])
+    r += 1
+    sb.add_row(r, [(1, 'Total Benefit', 4), (2, '725M', 4), (3, '860M', 4),
+                   (4, '692.5M', 4), (5, '820M', 4), (6, '700M', 4), (7, '825M', 4)])
+    r += 1
+    sb.add_row(r, [(1, 'Rasio Benefit', 4), (2, '145%', 4), (3, '172%', 4),
+                   (4, '139%', 4), (5, '164%', 4), (6, '140%', 4), (7, '165%', 4)])
+    r += 2
+
+    sb.add_row(r, [(1, 'Catatan:', 7)])
+    r += 1
+    sb.add_row(r, [(1, 'MSP = Manulife Saver Plus (produk lama)', 0)])
+    r += 1
+    sb.add_row(r, [(1, 'FI = Flexi Income (kompetitor)', 0)])
+    r += 1
+    sb.add_row(r, [(1, 'Rasio = Total Benefit / Total Premi (5 thn x 100 Juta = 500 Juta)', 0)])
+    r += 1
+    sb.add_row(r, [(1, 'MDWA memberikan rasio benefit tertinggi.', 7)])
+
+    return sb.build()
+
+
+# ==============================================================
+# RINGKASAN SHEET
+# ==============================================================
+def build_ringkasan_sheet(ss_map):
+    """Summary/overview sheet comparing all 3 plans side by side."""
+    sb = SheetBuilder(ss_map)
+    sb.set_col_width(1, 8)
+    sb.set_col_width(2, 28)
+    sb.set_col_width(3, 32)
+    sb.set_col_width(4, 32)
+    sb.set_col_width(5, 32)
+
+    r = 1
+    sb.add_row(r, [(1, 'RINGKASAN - MANULIFE DYNAMIC WEALTH ASSURANCE', 5)])
+    sb.add_merge('B1:E1')
     r += 2
 
     # Plan comparison header
-    sb.add_row(r, [(0, 'Fitur', 1), (1, 'Plan A - Anuitas', 1), (2, 'Plan B - Beasiswa', 1), (3, 'Plan C - Combo', 1)])
+    sb.add_row(r, [(1, 'Fitur', 1), (2, 'Plan A - Anuitas', 1), (3, 'Plan B - Beasiswa', 1), (4, 'Plan C - Combo', 1)])
     r += 1
-    sb.add_row(r, [(0, 'Konsep', 2), (1, 'Arus kas tahunan stabil untuk perencanaan pensiun', 2), (2, 'Lump sum di akhir masa pertanggungan untuk dana pendidikan', 2), (3, 'Pembayaran tahunan + manfaat jatuh tempo untuk tabungan fleksibel', 2)])
-    r += 1
-    sb.add_row(r, [(0, 'Masa Pertanggungan', 2), (1, '20 / 30 tahun', 2), (2, '5-15 / 20 / 30 tahun', 2), (3, '10 / 15 / 20 / 30 tahun', 2)])
-    r += 1
-    sb.add_row(r, [(0, 'Manfaat Utama', 2), (1, 'Tahapan tahunan (annual payout)', 2), (2, 'Lump sum saat jatuh tempo (maturity)', 2), (3, 'Tahapan tahunan + lump sum jatuh tempo', 2)])
-    r += 2
-
-    # Common specifications
-    sb.add_row(r, [(0, 'SPESIFIKASI UMUM', 5)])
-    sb.add_merge('A' + str(r) + ':D' + str(r))
-    r += 1
-    specs = [
-        ('Masa Pembayaran Premi', 'Premi Sekaligus (Single Premium), PPP 5 tahun, PPP 10 tahun'),
-        ('Mode Pembayaran', 'Tahunan (100%), Semesteran (52.5%/51.25%), Tiga Bulanan (27.5%/26.5%), Bulanan (9.5%/9%)'),
-        ('Usia Masuk (Single)', '30 hari - 85 tahun'),
-        ('Usia Masuk (Regular)', '30 hari - 70 tahun'),
-        ('Mata Uang', 'IDR dan USD'),
-        ('Underwriting', 'Guaranteed Issuance Offering'),
-        ('Riders', 'Advanced Life Protector Plus, Manulife Payor Benefit Plus, Manulife Waiver of Premium Plus'),
-        ('Min. Premi Single', 'IDR 50 Juta / USD 5,000'),
-        ('Min. Premi Regular', 'IDR 24 Juta / USD 2,400'),
-        ('ADB & TPD', '25% of Annual Basic Premium, dibayar tahunan sampai akhir masa pertanggungan'),
+    rows_data = [
+        ('Konsep', 'Arus kas tahunan stabil (pensiun)', 'Lump sum di akhir (pendidikan)', 'Tahapan + lump sum (fleksibel)'),
+        ('Manfaat Utama', 'Tahapan tahunan (annual payout)', 'Lump sum saat jatuh tempo', 'Tahapan + jatuh tempo'),
+        ('Masa Pertanggungan', '20 / 30 tahun', '5-15 / 20 / 30 tahun', '10 / 15 / 20 / 30 tahun'),
+        ('Masa Bayar Premi', 'Single / 5 / 10 tahun', 'Single / 5 / 10 tahun', 'Single / 5 / 10 tahun'),
+        ('Usia Masuk (Single)', '30 hari - 85 tahun', '30 hari - 85 tahun', '30 hari - 85 tahun'),
+        ('Usia Masuk (Regular)', '30 hari - 70 tahun', '30 hari - 70 tahun', '30 hari - 70 tahun'),
+        ('Min Premi Single', 'IDR 50 Juta / USD 5,000', 'IDR 50 Juta / USD 5,000', 'IDR 50 Juta / USD 5,000'),
+        ('Min Premi Regular', 'IDR 24 Juta / USD 2,400', 'IDR 24 Juta / USD 2,400', 'IDR 24 Juta / USD 2,400'),
+        ('ADB & TPD', '25% Premi Dasar Tahunan', '25% Premi Dasar Tahunan', '25% Premi Dasar Tahunan'),
+        ('Banding 2 Trigger', 'Single>=500M / Reg>=100M', 'Single>=500M / Reg>=100M', 'Single>=500M / Reg>=100M'),
     ]
-    for label, val in specs:
-        sb.add_row(r, [(0, label, 4), (1, val, 2)])
-        sb.add_merge('B' + str(r) + ':D' + str(r))
+    for label, a, b, c in rows_data:
+        sb.add_row(r, [(1, label, 4), (2, a, 2), (3, b, 2), (4, c, 2)])
         r += 1
 
     r += 1
-    sb.add_row(r, [(0, 'PREMIUM BANDING', 5)])
-    sb.add_merge('A' + str(r) + ':D' + str(r))
+    sb.add_row(r, [(1, 'SPESIFIKASI UMUM', 5)])
+    sb.add_merge('B' + str(r) + ':E' + str(r))
     r += 1
-    sb.add_row(r, [(0, 'Banding', 1), (1, 'Single Premium', 1), (2, 'Regular Premium', 1)])
+    specs = [
+        ('Mode Pembayaran', 'Tahunan (100%), Semesteran (52.5%/51.25%), Triwulanan (27.5%/26.5%), Bulanan (9.5%/9%)'),
+        ('Underwriting', 'Guaranteed Issuance Offering'),
+        ('Riders', 'Advanced Life Protector Plus, Manulife Payor Benefit Plus, Manulife Waiver of Premium Plus'),
+        ('Mata Uang', 'IDR dan USD'),
+    ]
+    for label, val in specs:
+        sb.add_row(r, [(1, label, 4), (2, val, 2)])
+        sb.add_merge('C' + str(r) + ':E' + str(r))
+        r += 1
+
     r += 1
-    sb.add_row(r, [(0, 'Banding 1 (IDR)', 2), (1, 'IDR 50M - <500M', 2), (2, 'IDR 24M - <100M', 2)])
+    sb.add_row(r, [(1, 'BANDING PREMIUM', 5)])
+    sb.add_merge('B' + str(r) + ':E' + str(r))
     r += 1
-    sb.add_row(r, [(0, 'Banding 1 (USD)', 2), (1, 'USD 5,000 - <50,000', 2), (2, 'USD 2,400 - <10,000', 2)])
+    sb.add_row(r, [(1, 'Banding', 1), (2, 'Single Premium', 1), (3, 'Regular Premium', 1)])
     r += 1
-    sb.add_row(r, [(0, 'Banding 2 (IDR)', 2), (1, '>= IDR 500M', 2), (2, '>= IDR 100M', 2)])
+    sb.add_row(r, [(1, 'Banding 1 (IDR)', 2), (2, 'IDR 50M - <500M', 2), (3, 'IDR 24M - <100M', 2)])
     r += 1
-    sb.add_row(r, [(0, 'Banding 2 (USD)', 2), (1, '>= USD 50,000', 2), (2, '>= USD 10,000', 2)])
+    sb.add_row(r, [(1, 'Banding 2 (IDR)', 2), (2, '>= IDR 500M', 2), (3, '>= IDR 100M', 2)])
+    r += 1
+    sb.add_row(r, [(1, 'Banding 1 (USD)', 2), (2, 'USD 5,000 - <50,000', 2), (3, 'USD 2,400 - <10,000', 2)])
+    r += 1
+    sb.add_row(r, [(1, 'Banding 2 (USD)', 2), (2, '>= USD 50,000', 2), (3, '>= USD 10,000', 2)])
+
+    r += 2
+    sb.add_row(r, [(1, 'Gunakan sheet PLAN A, PLAN B, PLAN C untuk kalkulasi manfaat.', 7)])
+    r += 1
+    sb.add_row(r, [(1, 'Pilih Gender dan Usia di sel KUNING pada masing-masing sheet Plan.', 11)])
 
     return sb.build()
 
 
-
+# ==============================================================
+# MAIN - Build and package XLSX
+# ==============================================================
 def main():
-    print('Generating Kalkulator_MDWA.xlsx (with interactive KALKULATOR sheet)...')
+    print('Generating Kalkulator_MDWA.xlsx (per-plan dropdown design)...')
 
-    # Collect all unique strings
+    # Collect shared strings
     all_strings = []
     seen = set()
 
@@ -936,97 +899,59 @@ def main():
             seen.add(s)
             all_strings.append(s)
 
-    # Gather strings from all sheets
-    kalk_strs = [
-        'KALKULATOR MDWA - Manulife Dynamic Wealth Assurance',
-        'INPUT DATA NASABAH', 'Jenis Kelamin:', 'Pria', 'Wanita',
-        'Usia Masuk (tahun):', 'Premi (nominal):', 'Plan:', 'A', 'B', 'C',
-        'Mata Uang:', 'IDR', 'USD', 'Masa Pembayaran Premi:', 'Single',
-        'Masa Pertanggungan (tahun):', 'Mode Pembayaran:', 'Tahunan',
-        'HASIL PERHITUNGAN', 'Kelayakan Usia:', 'Level Banding:',
-        'Cek Minimum Premi:', 'Validasi Masa Pertanggungan:',
-        'Validasi PPP vs Coverage:',
-        'PROYEKSI MANFAAT', 'Persentase Tahapan Tahunan:', '(% dari Premi)',
-        'Nominal Tahapan/Tahun:', 'IDR/USD per tahun',
-        'Persentase Manfaat Jatuh Tempo:', 'Nominal Manfaat Jatuh Tempo:',
-        'Banding 2 Extra (%):', 'Banding 2 Extra (nominal):',
-        'Mulai Pembayaran Tahapan:', 'Jumlah Tahun Pembayaran:',
-        'Total Tahapan (seluruh periode):', 'TOTAL MANFAAT:',
-        'MANFAAT TAMBAHAN', 'ADB & TPD per tahun:',
-        '25% of Annual Basic Premium', 'Total ADB & TPD (full coverage):',
-        'KONVERSI MODE PEMBAYARAN', 'Premi Tahunan:', 'Premi Semesteran:',
-        'IDR 52.5% / USD 51.25%', 'Premi Triwulanan:', 'IDR 27.5% / USD 26.5%',
-        'Premi Bulanan:', 'IDR 9.5% / USD 9%',
+    # All unique strings across sheets
+    strings_list = [
+        # Plan A
+        'PLAN A - ANUITAS', 'Manfaat Tahapan Tahunan (Annual Payout)',
+        'INPUT DATA', 'JENIS KELAMIN:', 'Pria', 'Wanita',
+        'USIA MASUK:', 'PREMI TAHUNAN (IDR):', 'MASA BAYAR:',
+        'Single', '5 Tahun', '10 Tahun',
+        'MASA PERTANGGUNGAN:', '20 Tahun', '30 Tahun',
+        'HASIL PERHITUNGAN', 'STATUS KELAYAKAN:', 'LEVEL BANDING:',
+        'MANFAAT TAHAPAN TAHUNAN (%):', '% dari Premi (Banding 1)',
+        'BANDING 2 EXTRA (%):', 'Tambahan jika Banding 2',
+        'TOTAL TAHAPAN % PER TAHUN:', 'MANFAAT TAHAPAN TAHUNAN (IDR):',
+        'Per tahun', 'MULAI PEMBAYARAN:', 'JUMLAH TAHUN PEMBAYARAN:',
+        'tahun', 'TOTAL TAHAPAN (SELURUH PERIODE):',
+        'MANFAAT ADB & TPD /TAHUN:', '25% Premi Dasar Tahunan',
+        'TOTAL ADB & TPD:', 'TOTAL SELURUH MANFAAT:',
         'CATATAN:',
-        '- Ubah nilai di sel berwarna KUNING untuk melihat hasil otomatis',
-        '- Plan A (Anuitas): Tahapan tahunan, coverage 20/30 tahun',
-        '- Plan B (Beasiswa): Lump sum jatuh tempo, coverage 5-15/20/30 tahun',
-        '- Plan C (Combo): Tahapan + jatuh tempo, coverage 10/15/20/30 tahun',
-        '- Lihat sheet DATA_PLAN_A/B/C untuk tabel referensi lengkap',
-        '- Usia masuk: Single 30 hari-85 thn, Regular 30 hari-70 thn',
-        '- Gender mempengaruhi underwriting namun TIDAK mempengaruhi benefit MDWA (unisex rate)',
-    ]
-    for s in kalk_strs:
-        add_str(s)
-
-    data_a_strs = [
-        'DATA PLAN A - ANUITAS (Tabel Referensi)',
-        'Key', 'Masa Bayar', 'Tahapan % IDR (B1)', 'Extra % IDR (B2)',
-        'Tahapan % USD (B1)', 'Extra % USD (B2)', 'Mulai Bayar',
-        'Single_20', 'Single_30', '5_20', '5_30', '10_20', '10_30',
-        '5 Tahun', '10 Tahun',
-        'JADWAL PEMBAYARAN TAHAPAN',
-        'Single: Mulai akhir tahun ke-6 s/d akhir masa pertanggungan',
-        'PPP 5: Mulai akhir tahun ke-10 s/d akhir masa pertanggungan',
-        'PPP 10: Mulai akhir tahun ke-15 s/d akhir masa pertanggungan',
-        'Tahapan = % x Premi, dibayar setiap tahun dari start sampai akhir coverage',
-        'Banding 2 Extra = tambahan % untuk premi >= IDR 500M (Single) atau >= IDR 100M (Regular)',
-    ]
-    for s in data_a_strs:
-        add_str(s)
-
-    data_b_strs = [
-        'DATA PLAN B - BEASISWA (Tabel Referensi)',
-        'Maturity % IDR (B1)', 'Extra % IDR (B2)', 'Maturity % USD (B1)', 'Extra % USD (B2)',
-        'Single_5', 'Single_6', 'Single_7', 'Single_8', 'Single_9', 'Single_10',
-        'Single_11', 'Single_12', 'Single_13', 'Single_14', 'Single_15',
-        '5_10', '5_11', '5_12', '5_13', '5_14', '5_15',
-        '10_15',
-    ]
-    for s in data_b_strs:
-        add_str(s)
-
-    data_c_strs = [
-        'DATA PLAN C - COMBO (Tabel Referensi)',
-        'Tahapan % IDR', 'Maturity % IDR', 'Extra Mat % IDR',
-        'Tahapan % USD', 'Maturity % USD', 'Extra Mat % USD',
-        'Single_10', 'Single_15',
-        '5_10', '5_15', '5_20', '5_30',
-        '10_15', '10_20', '10_30',
-        'JADWAL PEMBAYARAN TAHAPAN PLAN C',
-        'Single: Mulai akhir tahun ke-1 s/d akhir masa pertanggungan',
-        'PPP 5: Mulai akhir tahun ke-5 s/d akhir masa pertanggungan',
-        'PPP 10: Mulai akhir tahun ke-10 s/d akhir masa pertanggungan',
-    ]
-    for s in data_c_strs:
-        add_str(s)
-
-    komisi_strs = [
-        'STRUKTUR KOMISI MDWA',
-        'PLAN A - ANUITAS', 'Term', 'Year 1', 'Year 2',
-        '4%', '5%', '10%', '15%', '12.5%', '7.5%', '-',
-        '20yr', '30yr', '5 Pay', '10 Pay',
-        'PLAN B - BEASISWA',
-        '5-10yr', '11-15yr', '2%', '6%', 'all',
-        'PLAN C - COMBO', '10yr', '15yr',
-    ]
-    for s in komisi_strs:
-        add_str(s)
-
-    perb_strs = [
+        '- Pilih dari dropdown di sel KUNING untuk melihat hasil otomatis',
+        '- Gender tidak mempengaruhi benefit MDWA (unisex rate)',
+        '- Plan A: Tahapan dibayar tahunan dari tahun mulai s/d akhir coverage',
+        '- Banding 2: Premi >= 500 Juta (Single) atau >= 100 Juta (Regular)',
+        # Plan B
+        'PLAN B - BEASISWA', 'Manfaat Lump Sum di Akhir Masa Pertanggungan (Maturity)',
+        '5 Tahun', '6 Tahun', '7 Tahun', '8 Tahun', '9 Tahun',
+        '10 Tahun', '11 Tahun', '12 Tahun', '13 Tahun', '14 Tahun', '15 Tahun',
+        'MANFAAT BEASISWA (%):', 'TOTAL MANFAAT BEASISWA (%):',
+        'MANFAAT BEASISWA (LUMP SUM):', 'Dibayar di akhir coverage',
+        'TOTAL MANFAAT:',
+        '- Plan B: Manfaat lump sum dibayar di akhir masa pertanggungan',
+        '- Single: coverage 5-15/20/30 thn; 5 Tahun: 10-15/20/30 thn; 10 Tahun: 15/20/30 thn',
+        'TABEL REFERENSI (JANGAN DIUBAH)', 'Key', 'Maturity % (B1)', 'Extra % (B2)',
+        'Single_5', 'Single_6', 'Single_7', 'Single_8', 'Single_9',
+        'Single_10', 'Single_11', 'Single_12', 'Single_13', 'Single_14', 'Single_15',
+        'Single_20', 'Single_30', '5_10', '5_11', '5_12', '5_13', '5_14', '5_15',
+        '5_20', '5_30', '10_15', '10_20', '10_30',
+        # Plan C
+        'PLAN C - COMBO', 'Manfaat Tahapan Tahunan + Lump Sum Jatuh Tempo',
+        'MANFAAT AKHIR MASA PERTANGGUNGAN (%):', 'MANFAAT AKHIR MASA PERTANGGUNGAN (IDR):',
+        'BANDING 2 EXTRA MATURITY (%):', 'BANDING 2 EXTRA (IDR):',
+        'MULAI PEMBAYARAN TAHAPAN:',
+        '- Plan C: Gabungan tahapan tahunan + lump sum di akhir',
+        '- Single: mulai tahun ke-1; 5 Tahun: mulai tahun ke-5; 10 Tahun: mulai tahun ke-10',
+        'Tahapan %', 'Maturity %', 'Extra Mat %',
+        # Komisi
+        'STRUKTUR KOMISI MDWA', 'PLAN A - ANUITAS', 'Masa Bayar', 'Coverage',
+        'Tahun 1', 'Tahun 2',
+        '20 thn', '30 thn', '4%', '5%', '15%', '10%', '-',
+        'PLAN B - BEASISWA', '5-10 thn', '11-15 thn', '2%', '6%', '7.5%',
+        'PLAN C - COMBO', '10 thn', '15 thn', '12.5%', 'semua',
+        # Perbandingan
         'PERBANDINGAN vs KOMPETITOR',
-        'PPP 5 Tahun, Band 2, Premi Tahunan IDR 100 Juta',
-        'Feature', 'MDWA 15yr', 'MDWA 20yr', 'MSP 15yr', 'MSP 20yr', 'FI 15yr', 'FI 20yr',
+        'Contoh: PPP 5 Tahun, Banding 2, Premi Tahunan IDR 100 Juta',
+        'Fitur', 'MDWA 15yr', 'MDWA 20yr', 'MSP 15yr', 'MSP 20yr', 'FI 15yr', 'FI 20yr',
         'Tahapan/Tahun', '17.5M x 11', '20M x 16', '20M x 10', '20M x 15',
         'Total Tahapan', '192.5M', '320M', '200M', '300M',
         'Maturity', '532.5M', '540M', '500M', '525M',
@@ -1035,69 +960,62 @@ def main():
         'Catatan:',
         'MSP = Manulife Saver Plus (produk lama)',
         'FI = Flexi Income (kompetitor)',
-        'Rasio Benefit = Total Benefit / Total Premi (5 tahun x IDR 100 Juta = IDR 500 Juta)',
-        'MDWA memberikan rasio benefit tertinggi di kedua masa pertanggungan.',
-    ]
-    for s in perb_strs:
-        add_str(s)
-
-    overview_strs = [
-        'MANULIFE DYNAMIC WEALTH ASSURANCE (MDWA)',
-        'Perbandingan 3 Plan MDWA',
-        'Fitur', 'Plan A - Anuitas', 'Plan B - Beasiswa', 'Plan C - Combo',
-        'Konsep', 'Arus kas tahunan stabil untuk perencanaan pensiun',
-        'Lump sum di akhir masa pertanggungan untuk dana pendidikan',
-        'Pembayaran tahunan + manfaat jatuh tempo untuk tabungan fleksibel',
-        'Masa Pertanggungan', '20 / 30 tahun', '5-15 / 20 / 30 tahun', '10 / 15 / 20 / 30 tahun',
+        'Rasio = Total Benefit / Total Premi (5 thn x 100 Juta = 500 Juta)',
+        'MDWA memberikan rasio benefit tertinggi.',
+        # Ringkasan
+        'RINGKASAN - MANULIFE DYNAMIC WEALTH ASSURANCE',
+        'Plan A - Anuitas', 'Plan B - Beasiswa', 'Plan C - Combo',
+        'Konsep', 'Arus kas tahunan stabil (pensiun)',
+        'Lump sum di akhir (pendidikan)', 'Tahapan + lump sum (fleksibel)',
         'Manfaat Utama', 'Tahapan tahunan (annual payout)',
-        'Lump sum saat jatuh tempo (maturity)', 'Tahapan tahunan + lump sum jatuh tempo',
-        'SPESIFIKASI UMUM',
-        'Masa Pembayaran Premi', 'Premi Sekaligus (Single Premium), PPP 5 tahun, PPP 10 tahun',
-        'Mode Pembayaran', 'Tahunan (100%), Semesteran (52.5%/51.25%), Tiga Bulanan (27.5%/26.5%), Bulanan (9.5%/9%)',
+        'Lump sum saat jatuh tempo', 'Tahapan + jatuh tempo',
+        'Masa Pertanggungan', '20 / 30 tahun', '5-15 / 20 / 30 tahun', '10 / 15 / 20 / 30 tahun',
+        'Masa Bayar Premi', 'Single / 5 / 10 tahun',
         'Usia Masuk (Single)', '30 hari - 85 tahun',
         'Usia Masuk (Regular)', '30 hari - 70 tahun',
-        'Mata Uang', 'IDR dan USD',
+        'Min Premi Single', 'IDR 50 Juta / USD 5,000',
+        'Min Premi Regular', 'IDR 24 Juta / USD 2,400',
+        'ADB & TPD', '25% Premi Dasar Tahunan',
+        'Banding 2 Trigger', 'Single>=500M / Reg>=100M',
+        'SPESIFIKASI UMUM',
+        'Mode Pembayaran', 'Tahunan (100%), Semesteran (52.5%/51.25%), Triwulanan (27.5%/26.5%), Bulanan (9.5%/9%)',
         'Underwriting', 'Guaranteed Issuance Offering',
         'Riders', 'Advanced Life Protector Plus, Manulife Payor Benefit Plus, Manulife Waiver of Premium Plus',
-        'Min. Premi Single', 'IDR 50 Juta / USD 5,000',
-        'Min. Premi Regular', 'IDR 24 Juta / USD 2,400',
-        'ADB & TPD', '25% of Annual Basic Premium, dibayar tahunan sampai akhir masa pertanggungan',
-        'PREMIUM BANDING',
-        'Banding', 'Single Premium', 'Regular Premium',
+        'Mata Uang', 'IDR dan USD',
+        'BANDING PREMIUM', 'Banding', 'Single Premium', 'Regular Premium',
         'Banding 1 (IDR)', 'IDR 50M - <500M', 'IDR 24M - <100M',
-        'Banding 1 (USD)', 'USD 5,000 - <50,000', 'USD 2,400 - <10,000',
         'Banding 2 (IDR)', '>= IDR 500M', '>= IDR 100M',
+        'Banding 1 (USD)', 'USD 5,000 - <50,000', 'USD 2,400 - <10,000',
         'Banding 2 (USD)', '>= USD 50,000', '>= USD 10,000',
+        'Gunakan sheet PLAN A, PLAN B, PLAN C untuk kalkulasi manfaat.',
+        'Pilih Gender dan Usia di sel KUNING pada masing-masing sheet Plan.',
     ]
-    for s in overview_strs:
+    for s in strings_list:
         add_str(s)
 
     ss_map = {s: i for i, s in enumerate(all_strings)}
 
     print('  Building sheets...')
-    sheet1_xml = build_kalkulator_sheet(ss_map)
-    sheet2_xml = build_data_plan_a_sheet(ss_map)
-    sheet3_xml = build_data_plan_b_sheet(ss_map)
-    sheet4_xml = build_data_plan_c_sheet(ss_map)
-    sheet5_xml = build_komisi_sheet(ss_map)
-    sheet6_xml = build_perbandingan_sheet(ss_map)
-    sheet7_xml = build_overview_sheet(ss_map)
+    sheet1_xml = build_plan_a_sheet(ss_map)
+    sheet2_xml = build_plan_b_sheet(ss_map)
+    sheet3_xml = build_plan_c_sheet(ss_map)
+    sheet4_xml = build_komisi_sheet(ss_map)
+    sheet5_xml = build_perbandingan_sheet(ss_map)
+    sheet6_xml = build_ringkasan_sheet(ss_map)
 
     shared_strings_xml = build_shared_strings(all_strings)
     styles_xml = build_styles_xml()
     theme_xml = build_theme_xml()
 
-    sheet_names = [
-        'KALKULATOR', 'DATA_PLAN_A', 'DATA_PLAN_B', 'DATA_PLAN_C',
-        'KOMISI', 'PERBANDINGAN', 'OVERVIEW'
-    ]
+    sheet_names = ['PLAN A', 'PLAN B', 'PLAN C', 'KOMISI', 'PERBANDINGAN', 'RINGKASAN']
+    num_sheets = len(sheet_names)
 
     # Content Types
     ct = chr(60) + '?xml version="1.0" encoding="UTF-8" standalone="yes"?' + chr(62)
     ct += '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
     ct += '<Default ContentType="application/xml" Extension="xml"/>'
     ct += '<Default ContentType="application/vnd.openxmlformats-package.relationships+xml" Extension="rels"/>'
-    for i in range(1, 8):
+    for i in range(1, num_sheets + 1):
         ct += '<Override ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml" PartName="/xl/worksheets/sheet' + str(i) + '.xml"/>'
     ct += '<Override ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml" PartName="/xl/sharedStrings.xml"/>'
     ct += '<Override ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml" PartName="/xl/styles.xml"/>'
@@ -1126,11 +1044,13 @@ def main():
     wb_rels += '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>'
     wb_rels += '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
     wb_rels += '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
-    for i in range(1, 8):
+    for i in range(1, num_sheets + 1):
         wb_rels += '<Relationship Id="rId' + str(i + 3) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + str(i) + '.xml"/>'
     wb_rels += '</Relationships>'
 
     print('  Packaging xlsx...')
+    sheets_xml = [sheet1_xml, sheet2_xml, sheet3_xml, sheet4_xml, sheet5_xml, sheet6_xml]
+
     with zipfile.ZipFile(OUTPUT_XLSX, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr('[Content_Types].xml', ct)
         zf.writestr('_rels/.rels', rels)
@@ -1139,31 +1059,31 @@ def main():
         zf.writestr('xl/styles.xml', styles_xml)
         zf.writestr('xl/sharedStrings.xml', shared_strings_xml)
         zf.writestr('xl/theme/theme1.xml', theme_xml)
-        zf.writestr('xl/worksheets/sheet1.xml', sheet1_xml)
-        zf.writestr('xl/worksheets/sheet2.xml', sheet2_xml)
-        zf.writestr('xl/worksheets/sheet3.xml', sheet3_xml)
-        zf.writestr('xl/worksheets/sheet4.xml', sheet4_xml)
-        zf.writestr('xl/worksheets/sheet5.xml', sheet5_xml)
-        zf.writestr('xl/worksheets/sheet6.xml', sheet6_xml)
-        zf.writestr('xl/worksheets/sheet7.xml', sheet7_xml)
+        for i, xml in enumerate(sheets_xml, 1):
+            zf.writestr('xl/worksheets/sheet' + str(i) + '.xml', xml)
 
     print(f'Output: {OUTPUT_XLSX}')
 
     # Verify
     with zipfile.ZipFile(OUTPUT_XLSX) as z:
         print(f'  Valid xlsx with {len(z.namelist())} files')
-        print(f'  Contents: {z.namelist()}')
+        print(f'  Files: {z.namelist()}')
 
-    # Verify formulas present
-    import re
+    # Verify formulas and data validation
     with zipfile.ZipFile(OUTPUT_XLSX) as z:
-        s1 = z.read('xl/worksheets/sheet1.xml').decode()
-        formulas = re.findall(r'<f>(.*?)</f>', s1)
-        print(f'  KALKULATOR sheet formulas: {len(formulas)}')
-        if formulas:
-            print(f'  Sample: {formulas[0][:80]}...')
-        dv = 'dataValidation' in s1
-        print(f'  Data validation present: {dv}')
+        for i in range(1, 4):
+            sheet_data = z.read(f'xl/worksheets/sheet{i}.xml').decode()
+            formulas = re.findall(r'<f>(.*?)</f>', sheet_data)
+            has_dv = 'dataValidation' in sheet_data
+            print(f'  Sheet {i} ({sheet_names[i-1]}): {len(formulas)} formulas, dataValidation={has_dv}')
+
+    # Verify no Chinese chars
+    with zipfile.ZipFile(OUTPUT_XLSX) as z:
+        content = z.read('xl/sharedStrings.xml').decode()
+        has_chinese = any('\u4e00' <= c <= '\u9fff' for c in content)
+        print(f'  Chinese characters: {"FOUND - ERROR" if has_chinese else "None - OK"}')
+
+    print('Done!')
 
 
 if __name__ == "__main__":
