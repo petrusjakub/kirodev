@@ -1,0 +1,7 @@
+{
+  "task_id": "task-mdwa-excel-generator",
+  "task_description": "Create an Excel file (Kalkulator_MDWA.xlsx) via Python script to help insurance agents present MDWA Plan A, B, C products. Delete unrelated Chinese-language files. All content in Indonesian/English.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}

@@ -1,0 +1,35 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Create generate_mdwa_excel.py that produces Kalkulator_MDWA.xlsx with 7 professional sheets for MDWA Plan A, B, C product presentation. Delete unrelated Chinese-language files (generate_lemon_premium.py and 保费费率表.xlsx).",
+  "status": "in_progress",
+  "steps": [
+    "Delete /projects/sandbox/kirodev/generate_lemon_premium.py (Chinese Lemon insurance product - unrelated)",
+    "Delete /projects/sandbox/kirodev/保费费率表.xlsx (Chinese premium rate table output - unrelated)",
+    "Create /projects/sandbox/kirodev/generate_mdwa_excel.py using ONLY Python standard library (zipfile, xml strings - same raw XML approach as generate_excel.py). DO NOT use openpyxl as it is not available.",
+    "The script must generate Kalkulator_MDWA.xlsx with these 7 sheets: 1) Overview - product summary comparing all 3 plans, 2) Plan A - Anuitas - benefit tables with Banding 1 & 2, 3) Plan B - Beasiswa - benefit tables with Banding 1 & 2, 4) Plan C - Combo - benefit tables with Banding 1 & 2, 5) Simulasi - calculator/simulation sheet, 6) Komisi - commission structure, 7) Perbandingan - comparison vs competitors",
+    "Use professional formatting: Manulife green (#00B050 or #1E7145), merged cells for headers, clear section titles, number formatting",
+    "All text must be in Indonesian (with standard English insurance terms where appropriate). NO Chinese characters anywhere.",
+    "Include all MDWA product data provided in the task description (benefits, banding, commission rates, competitor comparison)",
+    "The Simulasi sheet should allow agents to see projected benefits based on different premium amounts for each plan",
+    "Run the script to generate the output xlsx file"
+  ],
+  "acceptance_criteria": [
+    "generate_lemon_premium.py is deleted",
+    "保费费率表.xlsx is deleted",
+    "generate_mdwa_excel.py exists and runs without errors using only standard library",
+    "Kalkulator_MDWA.xlsx is generated with exactly 7 sheets",
+    "All content is in Indonesian/English - no Chinese characters",
+    "The xlsx file is a valid zip/xlsx that can be opened",
+    "All MDWA Plan A, B, C benefit data is included correctly",
+    "Commission structure is complete for all plans",
+    "Competitor comparison data is included"
+  ],
+  "verification": [
+    "python3 generate_mdwa_excel.py (should run without errors)",
+    "python3 -c \"import zipfile; z=zipfile.ZipFile('Kalkulator_MDWA.xlsx'); print(z.namelist()); z.close()\" (should show valid xlsx structure)",
+    "python3 -c \"import zipfile; z=zipfile.ZipFile('Kalkulator_MDWA.xlsx'); content=z.read('xl/sharedStrings.xml').decode(); assert '\\u4e2d' not in content; print('No Chinese chars found - OK')\" (verify no Chinese)"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
