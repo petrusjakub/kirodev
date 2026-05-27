@@ -1,0 +1,20 @@
+{
+  "project_type": "Python script that generates Excel calculator + new HTML generator",
+  "language": "Python (generator), HTML/CSS/JS (output)",
+  "build_system": "Python scripts run directly, no build system",
+  "test_framework": "Manual verification - open output file, check calculations match",
+  "build_command": "python3 generate_html.py (in /projects/sandbox/kirodev/)",
+  "test_command": "python3 generate_html.py && ls -la Kalkulator_Premi_MiUHC.html",
+  "verification_instructions": "1. Run python3 generate_html.py to generate the HTML file. 2. Verify the file is created successfully. 3. Verify the HTML is well-formed. 4. Spot-check premium calculations match the formula: Premi Tahunan = RS Premium * 1.12 (rounded to nearest 100), Premi Bulanan = Tahunan * 1.14 / 12 (rounded to nearest 100).",
+  "snapshot_or_generated_files": "Kalkulator_Premi_MiUHC.html is the generated output file",
+  "setup_instructions": "Python 3.9+ is pre-installed. No additional packages needed.",
+  "environment_constraints": "INTEGRATIONS_ONLY - no external CDN, packages, or network. All CSS/JS must be inline in the HTML. No external fonts or icon libraries. Everything self-contained.",
+  "contribution_requirements": "Output must be a single self-contained HTML file with embedded data, CSS, and JS",
+  "key_patterns": "generate_excel.py uses extract_syariah_data() and extract_konvensional_data() to get raw premium data from PDFs. Data structure: {'PRIA': {age: [13 values]}, 'WANITA': {age: [13 values]}}. Column order: Diamond, Ruby, Emerald, Topaz, Topaz ID, Jade, Jade ID, Sapphire, Diamond Smart, Ruby Smart, Emerald Smart, Topaz Smart, Jade Smart. Formula: Premi Tahunan = RS * 1.12 rounded to -2, Premi Bulanan = Tahunan * 1.14 / 12 rounded to -2.",
+  "relevant_files": [
+    "/projects/sandbox/kirodev/generate_excel.py",
+    "/projects/sandbox/kirodev/B. Tabel Premi Syariah 2024 - Miuhc Versi Quick PDF (3).pdf",
+    "/projects/sandbox/kirodev/B. Tabel Premi Miuhc Versi Quick PDF Per Sep 2025 (3).pdf"
+  ],
+  "directory_structure": "/projects/sandbox/kirodev/ - contains generate_excel.py (existing), PDFs (data source), and will contain the new generate_html.py and output HTML"
+}

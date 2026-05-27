@@ -1,0 +1,43 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Create generate_html.py that extracts premium data from both PDFs and produces a masterpiece-quality single-file HTML calculator (Kalkulator_Premi_MiUHC.html)",
+  "status": "in_progress",
+  "steps": [
+    "Create /projects/sandbox/kirodev/generate_html.py that imports extract_syariah_data() and extract_konvensional_data() from generate_excel.py",
+    "Extract all premium data from both PDFs and serialize as JSON embedded in the HTML output",
+    "Generate a single self-contained HTML file at /projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.html with ALL CSS and JS inline (no external dependencies - INTEGRATIONS_ONLY network mode)",
+    "The HTML must implement these UI features: (a) Tab switching between 'Konvensional' and 'Syariah' tabs, (b) Gender dropdown (Pria/Wanita), (c) Age dropdown (0-85), (d) Real-time premium calculation when inputs change",
+    "Premium calculation logic in JavaScript: premiTahunan = Math.round(rsValue * 1.12 / 100) * 100, premiBulanan = Math.round(premiTahunan * 1.14 / 12 / 100) * 100",
+    "Display premium results in two sections: (1) 'Most Wanted [No Deductible]' section showing Jade ID, Jade, Topaz ID, Topaz plans with their Premi Tahunan and Premi Bulanan, (2) 'HEMAT 40%' section showing Jade Smart and Topaz Smart plans with Premi Tahunan and Premi Bulanan",
+    "For each plan card, show: Plan name, Wilayah (Indonesia for ID plans, Seluruh Asia kec. JPN/HKG/SGP for non-ID), Kamar (2 Bed for Jade/Jade ID/Jade Smart, 1 Bed for Topaz/Topaz ID/Topaz Smart), Limit Kartu (10M for Jade plans, 18M for Topaz plans), Asuransi Jiwa: 30 Juta, Rawat Inap: Sesuai Tagihan",
+    "Also display all other plans (Diamond, Ruby, Emerald, Sapphire, Diamond Smart, Ruby Smart, Emerald Smart) in an expandable/collapsible 'Semua Plan' section or additional cards below",
+    "Design requirements - Manulife green color scheme: primary #1E7145, secondary #27AE60, accent #2ECC71. Card-based layout with box-shadow and border-radius. Smooth CSS transitions and animations on tab switch and value change. Professional typography using system fonts (font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif). Responsive design that works on mobile (320px) through desktop (1920px)",
+    "Add Manulife branding: header with company name, 'Mi Ultimate Healthcare (MiUHC)' title, 'PT Asuransi Jiwa Manulife Indonesia' subtitle",
+    "Add WhatsApp floating action button (bottom-right corner) linking to wa.me/6287781896087 with text 'PETRUS JAKUB MANULIFE 087781896087'. Use an inline SVG for the WhatsApp icon (no external images)",
+    "Add footer note explaining: '*Deductible = biaya yang ditanggung nasabah sendiri sebelum manfaat asuransi berlaku | Premi = RS Premi x 1.12 (tahunan), bulanan x 1.14 / 12'",
+    "For the HEMAT 40% section, show Deductible info: Rp5.000.000 for Jade Smart, Rp8.000.000 for Topaz Smart",
+    "Add No-Claim BONUS info: 'Setahun tanpa klaim? LIMIT tahunan kartu Anda naik 10% per tahun hingga 50%' and No-Claim DISCOUNT: 'Setahun tanpa klaim? Dapatkan DISCOUNT 10% di tahun berikutnya, hingga 15%'",
+    "Add print-friendly @media print CSS that hides the floating button, removes shadows, and optimizes layout for A4 printing",
+    "Run the script: python3 /projects/sandbox/kirodev/generate_html.py and verify the output HTML file is created successfully"
+  ],
+  "acceptance_criteria": [
+    "Running 'python3 /projects/sandbox/kirodev/generate_html.py' produces /projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.html without errors",
+    "The HTML file is self-contained (no external CSS/JS/font/image references)",
+    "The HTML file contains embedded JSON data for both Konvensional and Syariah premium tables (86 ages x 2 genders x 13 plans each)",
+    "Tab switching between Konvensional and Syariah works via JavaScript",
+    "Gender and Age dropdowns trigger recalculation and display updated premiums",
+    "Premium calculation matches formula: Tahunan = round(RS * 1.12, -2), Bulanan = round(Tahunan * 1.14 / 12, -2)",
+    "Spot check: Konvensional, Pria, Age 30, Jade ID column (index 6) RS=8555000, Tahunan should be round(8555000*1.12/100)*100 = 9581600, Bulanan = round(9581600*1.14/12/100)*100 = 910200",
+    "WhatsApp link points to wa.me/6287781896087",
+    "The page is responsive and uses Manulife green color scheme"
+  ],
+  "verification": [
+    "python3 /projects/sandbox/kirodev/generate_html.py",
+    "test -f /projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.html && echo 'HTML file exists'",
+    "python3 -c \"content = open('/projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.html').read(); assert 'wa.me/6287781896087' in content; assert '1E7145' in content or '1e7145' in content; assert 'Konvensional' in content; assert 'Syariah' in content; print('All checks passed')\"",
+    "python3 -c \"import json, re; content = open('/projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.html').read(); assert 'cdn' not in content.lower() or 'no-cdn' in content.lower(); assert 'googleapis' not in content; print('No external dependencies found')\""
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

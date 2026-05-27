@@ -1,0 +1,7 @@
+{
+  "task_id": "task-miuhc-html-calculator",
+  "task_description": "Create a masterpiece-quality HTML version of the MiUHC Premium Calculator. A Python script (generate_html.py) extracts premium data from PDFs and produces a single self-contained HTML file with beautiful UI, real-time calculations, tab switching (Konvensional/Syariah), and Manulife branding.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
