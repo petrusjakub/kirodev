@@ -233,8 +233,11 @@ border-radius:var(--radius);
 overflow:hidden;
 box-shadow:var(--shadow);
 transition:var(--transition);
-animation:fadeInUp 0.4s ease forwards;
 opacity:0;
+transform:translateY(15px);
+}
+.plan-card.animate{
+animation:fadeInUp 0.4s ease forwards;
 }
 .plan-card:hover{
 transform:translateY(-3px);
@@ -488,6 +491,11 @@ const PLAN_DETAILS = __PLAN_DETAILS__;
 
 let currentTab = 'konvensional';
 
+function escapeHtml(str) {
+    if (typeof str !== 'string') return str;
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 window.switchTab = function(tab) {
     currentTab = tab;
     document.querySelectorAll('.tab-btn').forEach(function(btn, i) {
@@ -512,7 +520,7 @@ window.toggleAllPlans = function() {
     var btn = document.getElementById('expand-btn');
     if (section.classList.contains('show')) {
         section.classList.remove('show');
-        btn.textContent = 'Lihat Semua Plan (13 Plan)';
+        btn.textContent = 'Lihat Semua Plan (7 Plan Lainnya)';
     } else {
         section.classList.add('show');
         btn.textContent = 'Sembunyikan';
@@ -524,13 +532,14 @@ function buildCard(planName, rs, isSmart) {
     var details = PLAN_DETAILS[planName];
     var deductibleHtml = '';
     if (details && details.deductible) {
-        deductibleHtml = '<span class="deductible-badge">Deductible: ' + details.deductible + '</span>';
+        deductibleHtml = '<span class="deductible-badge">Deductible: ' + escapeHtml(details.deductible) + '</span>';
     }
-    var wilayah = details ? details.wilayah : '-';
-    var kamar = details ? details.kamar : '-';
-    var limit = details ? details.limit : '-';
+    var wilayah = details ? escapeHtml(details.wilayah) : '-';
+    var kamar = details ? escapeHtml(details.kamar) : '-';
+    var limit = details ? escapeHtml(details.limit) : '-';
+    var safeName = escapeHtml(planName);
     return '<div class="plan-card' + (isSmart ? ' smart' : '') + '">' +
-        '<div class="card-header">' + planName + '</div>' +
+        '<div class="card-header">' + safeName + '</div>' +
         '<div class="card-body">' +
             '<div class="premi-row"><span class="premi-label">Premi Tahunan</span><span class="premi-value">' + formatRp(premi.tahunan) + '</span></div>' +
             '<div class="premi-row"><span class="premi-label">Premi Bulanan</span><span class="premi-value monthly">' + formatRp(premi.bulanan) + '</span></div>' +
@@ -584,25 +593,40 @@ window.calculate = function() {
     html += '</div>';
 
     // Expand button
-    html += '<button class="expand-btn" id="expand-btn" onclick="toggleAllPlans()">Lihat Semua Plan (13 Plan)</button>';
+    html += '<button class="expand-btn" id="expand-btn" onclick="toggleAllPlans()">Lihat Semua Plan (7 Plan Lainnya)</button>';
 
-    // All plans section
+    // All plans section - only show plans NOT already displayed above
+    // Exclude: Jade ID (6), Jade (5), Topaz ID (4), Topaz (3), Jade Smart (12), Topaz Smart (11)
+    var otherPlans = [
+        { name: 'Diamond', idx: 0 },
+        { name: 'Ruby', idx: 1 },
+        { name: 'Emerald', idx: 2 },
+        { name: 'Sapphire', idx: 7 },
+        { name: 'Diamond Smart', idx: 8 },
+        { name: 'Ruby Smart', idx: 9 },
+        { name: 'Emerald Smart', idx: 10 }
+    ];
     html += '<div class="all-plans" id="all-plans-section">';
-    html += '<div class="section-title">Semua Plan</div>';
+    html += '<div class="section-title">Semua Plan Lainnya</div>';
     html += '<div class="cards-grid">';
-    for (var k = 0; k < 13; k++) {
-        var name = PLAN_NAMES[k];
+    for (var k = 0; k < otherPlans.length; k++) {
+        var name = otherPlans[k].name;
         var isSmart = name.toLowerCase().indexOf('smart') >= 0;
-        html += buildCard(name, row[k], isSmart);
+        html += buildCard(name, row[otherPlans[k].idx], isSmart);
     }
     html += '</div></div>';
 
     document.getElementById('results').innerHTML = html;
 
-    // Re-trigger animations
+    // Re-trigger animations with reflow
     var cards = document.querySelectorAll('.plan-card');
     for (var c = 0; c < cards.length; c++) {
         cards[c].style.animationDelay = (c * 0.05) + 's';
+    }
+    // Force reflow before adding animate class
+    void document.getElementById('results').offsetHeight;
+    for (var c = 0; c < cards.length; c++) {
+        cards[c].classList.add('animate');
     }
 };
 
