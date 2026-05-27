@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Create generate_html.py that extracts premium data from both PDFs and produces a masterpiece-quality single-file HTML calculator (Kalkulator_Premi_MiUHC.html)",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create /projects/sandbox/kirodev/generate_html.py that imports extract_syariah_data() and extract_konvensional_data() from generate_excel.py",
     "Extract all premium data from both PDFs and serialize as JSON embedded in the HTML output",
@@ -39,5 +39,5 @@
     "python3 -c \"import json, re; content = open('/projects/sandbox/kirodev/Kalkulator_Premi_MiUHC.html').read(); assert 'cdn' not in content.lower() or 'no-cdn' in content.lower(); assert 'googleapis' not in content; print('No external dependencies found')\""
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Used string template replacement (not f-strings) to avoid brace conflicts with CSS/JS. The acceptance criteria spot-check for Bulanan expected 910200 but correct value is 910300 (Math.round(9581600*1.14/12/100)*100 = 910300). The formula implementation is correct per the specified formula."
 }
