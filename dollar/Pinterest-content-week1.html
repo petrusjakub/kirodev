@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pinterest Content Week 1 - Tech Freebies Daily</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a0033, #4a0066, #1a0033);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #ff4081;
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(255, 64, 129, 0.3);
+        }
+        .subtitle {
+            text-align: center;
+            color: #a0a0a0;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+        .pin-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+        .pin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .day-badge {
+            background: linear-gradient(135deg, #ff4081, #f50057);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .keyword-badge {
+            background: rgba(255, 64, 129, 0.1);
+            border: 1px solid rgba(255, 64, 129, 0.3);
+            color: #ff4081;
+            padding: 6px 14px;
+            border-radius: 12px;
+            font-size: 0.85em;
+        }
+        .pin-title {
+            color: #ffffff;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+        }
+        .section-label {
+            color: #ff4081;
+            font-weight: bold;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+        .info-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            color: #c0c0c0;
+            line-height: 1.6;
+        }
+        .code-container {
+            position: relative;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(135deg, #ff4081, #f50057);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85em;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        .copy-btn:hover {
+            background: linear-gradient(135deg, #ff5a92, #ff1744);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 64, 129, 0.4);
+        }
+        .copy-btn.copied {
+            background: linear-gradient(135deg, #00c853, #009624);
+        }
+        pre {
+            background: #1a1a2e;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            padding-top: 50px;
+            overflow-x: auto;
+            font-size: 0.85em;
+            line-height: 1.6;
+            color: #c0c0c0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .specs-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .specs-table th, .specs-table td {
+            padding: 10px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .specs-table th {
+            color: #ff4081;
+            font-size: 0.85em;
+            text-transform: uppercase;
+        }
+        .specs-table td {
+            color: #c0c0c0;
+        }
+        .instructions {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .instructions h3 {
+            color: #ffc107;
+            margin-bottom: 10px;
+        }
+        .instructions ol {
+            padding-left: 20px;
+            color: #d0d0d0;
+        }
+        .instructions li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Pinterest Content - Week 1</h1>
+        <p class="subtitle">Tech Freebies Daily | 7 Pin Prompts untuk Nano Banana 2</p>
+        
+        <div class="instructions">
+            <h3>Cara Menggunakan:</h3>
+            <ol>
+                <li>Copy <strong>Image Prompt</strong> &rarr; paste ke Nano Banana 2 AI Image Generator</li>
+                <li>Set ukuran: <strong>1000 x 1500 px</strong> (vertikal/portrait)</li>
+                <li>Generate image dan download hasilnya</li>
+                <li>Upload ke Pinterest dengan <strong>Pin Title</strong> dan <strong>Pin Description</strong> yang disediakan</li>
+                <li>Pilih board sesuai rekomendasi atau buat board baru</li>
+                <li>Tambahkan link artikel blog Anda di destination URL</li>
+            </ol>
+        </div>
+
+        <table class="specs-table">
+            <tr><th>Parameter</th><th>Nilai</th></tr>
+            <tr><td>Ukuran</td><td>1000 x 1500 px (rasio 2:3, vertikal)</td></tr>
+            <tr><td>Format</td><td>PNG atau JPG</td></tr>
+            <tr><td>Max File Size</td><td>20 MB</td></tr>
+            <tr><td>Warna</td><td>Bold, kontras tinggi (merah, kuning, biru tua)</td></tr>
+            <tr><td>Font</td><td>Bold, mudah dibaca (min 30pt untuk judul)</td></tr>
+            <tr><td>Branding</td><td>TechFreebiesDaily.com</td></tr>
+        </table>
+
+        <div class="pin-card">
+            <div class="pin-header">
+                <span class="day-badge">Day 1</span>
+                <span class="keyword-badge">free ai writing tools for students</span>
+            </div>
+            <h2 class="pin-title">7 FREE AI Writing Tools for Students</h2>
+            
+            <p class="section-label">Image Prompt (Nano Banana 2)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'prompt-day1')">Copy</button>
+                <pre><code id="prompt-day1">Create a vertical Pinterest pin design, 1000x1500 pixels, bold dark blue background with gradient to purple. Large white bold text at top reading '7 FREE AI Writing Tools' in sans-serif font minimum 60pt. Below that, yellow subtitle text reading 'For Students - 2025 Guide' in 40pt bold font. Center of image shows simple flat icons of a laptop, pencil, and AI brain chip in white and yellow colors. Bottom section has a red banner with white text reading 'No Credit Card Required'. Small branding text at very bottom: 'TechFreebiesDaily.com' in white 20pt font. Clean modern design, high contrast, no photographs, flat illustration style.</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Title</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'title-day1')">Copy</button>
+                <pre><code id="title-day1">7 Best FREE AI Writing Tools for Students 2025 | No Signup Required</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Description (dengan Hashtags)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'desc-day1')">Copy</button>
+                <pre><code id="desc-day1">Discover the best free AI writing tools for students! From ChatGPT to QuillBot, these tools help with essays, research papers, and creative writing. All completely free! #AIWriting #FreeTools #StudentLife #AITools #WritingTips #FreeAI #StudyHacks #CollegeLife #EssayWriting #EdTech</code></pre>
+            </div>
+            
+            <div class="info-box">
+                <strong>Board Recommendation:</strong> Free AI Tools & Apps
+            </div>
+        </div>
+
+        <div class="pin-card">
+            <div class="pin-header">
+                <span class="day-badge">Day 2</span>
+                <span class="keyword-badge">best free ai image generators no signup</span>
+            </div>
+            <h2 class="pin-title">10 FREE AI Image Generators - No Signup!</h2>
+            
+            <p class="section-label">Image Prompt (Nano Banana 2)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'prompt-day2')">Copy</button>
+                <pre><code id="prompt-day2">Create a vertical Pinterest pin design, 1000x1500 pixels, vibrant red background with subtle geometric patterns. Large white bold text at top reading '10 FREE AI Image Generators' in modern sans-serif font minimum 55pt. Below that, bright yellow text reading 'No Signup Required!' in 38pt bold font. Center features simple flat design icons of a camera, paintbrush, and sparkles/magic wand in white and yellow. A small grid of 4 colorful abstract squares suggesting AI-generated art. Bottom section has a dark blue banner with white text reading 'Create Stunning Images Instantly'. Branding at bottom: 'TechFreebiesDaily.com' in white 20pt font. Bold, eye-catching, high contrast design.</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Title</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'title-day2')">Copy</button>
+                <pre><code id="title-day2">10 Best FREE AI Image Generators No Signup 2025 | Create Art Instantly</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Description (dengan Hashtags)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'desc-day2')">Copy</button>
+                <pre><code id="desc-day2">Create stunning AI images for FREE without signing up! These 10 tools work instantly in your browser. Perfect for social media, blogs, and creative projects. #AIArt #FreeImageGenerator #AIImages #NoSignup #DigitalArt #FreeDesign #AIGenerator #CreativeTools #GraphicDesign #FreeSoftware</code></pre>
+            </div>
+            
+            <div class="info-box">
+                <strong>Board Recommendation:</strong> Free AI Tools & Apps
+            </div>
+        </div>
+
+        <div class="pin-card">
+            <div class="pin-header">
+                <span class="day-badge">Day 3</span>
+                <span class="keyword-badge">free screen recorder no watermark</span>
+            </div>
+            <h2 class="pin-title">8 FREE Screen Recorders - No Watermark!</h2>
+            
+            <p class="section-label">Image Prompt (Nano Banana 2)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'prompt-day3')">Copy</button>
+                <pre><code id="prompt-day3">Create a vertical Pinterest pin design, 1000x1500 pixels, deep dark blue background with neon accent colors. Large white bold text at top reading '8 FREE Screen Recorders' in modern sans-serif font minimum 55pt. Below that, bright red text reading 'No Watermark!' in 42pt bold font with a circle-slash icon over a watermark symbol. Center shows simple flat icons of a computer monitor with a play button, and a recording indicator dot in red. Yellow accent elements around the edges. Bottom section has yellow banner with dark text reading 'Professional Quality - Zero Cost'. Branding: 'TechFreebiesDaily.com' in white 20pt. Clean, modern, high-contrast design.</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Title</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'title-day3')">Copy</button>
+                <pre><code id="title-day3">8 Best FREE Screen Recorders No Watermark 2025 | Record Like a Pro</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Description (dengan Hashtags)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'desc-day3')">Copy</button>
+                <pre><code id="desc-day3">Record your screen for FREE without ugly watermarks! Perfect for tutorials, gameplay, and presentations. OBS Studio, ShareX, and 6 more amazing free options. #ScreenRecorder #FreeRecorder #NoWatermark #Tutorial #ContentCreation #FreeTools #VideoRecording #OBSStudio #TechTips #FreeSoftware</code></pre>
+            </div>
+            
+            <div class="info-box">
+                <strong>Board Recommendation:</strong> Free Tech Tools & Software
+            </div>
+        </div>
+
+        <div class="pin-card">
+            <div class="pin-header">
+                <span class="day-badge">Day 4</span>
+                <span class="keyword-badge">free pdf editor online no signup</span>
+            </div>
+            <h2 class="pin-title">9 FREE Online PDF Editors - No Signup!</h2>
+            
+            <p class="section-label">Image Prompt (Nano Banana 2)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'prompt-day4')">Copy</button>
+                <pre><code id="prompt-day4">Create a vertical Pinterest pin design, 1000x1500 pixels, rich red background with subtle paper texture overlay. Large white bold text at top reading '9 FREE PDF Editors' in modern sans-serif font minimum 60pt. Below that, bright yellow text reading 'Online - No Signup Needed!' in 36pt bold font. Center features a large simple flat PDF document icon in white with a pencil/edit overlay in yellow. Small icons around it showing merge, split, and compress symbols. Bottom section has dark blue banner with white text reading 'Edit PDFs in Seconds'. Branding at bottom: 'TechFreebiesDaily.com' in white 20pt font. Bold colors, high contrast, clean modern layout.</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Title</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'title-day4')">Copy</button>
+                <pre><code id="title-day4">9 Best FREE Online PDF Editors No Signup 2025 | Edit PDFs Instantly</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Description (dengan Hashtags)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'desc-day4')">Copy</button>
+                <pre><code id="desc-day4">Edit PDFs for FREE online without creating an account! Merge, split, compress, and edit text instantly. No downloads needed. #PDFEditor #FreePDF #OnlineTools #NoSignup #Productivity #FreeTools #PDFTools #OfficeHacks #WorkFromHome #TechTips</code></pre>
+            </div>
+            
+            <div class="info-box">
+                <strong>Board Recommendation:</strong> Free Tech Tools & Software
+            </div>
+        </div>
+
+        <div class="pin-card">
+            <div class="pin-header">
+                <span class="day-badge">Day 5</span>
+                <span class="keyword-badge">free ai video generator online</span>
+            </div>
+            <h2 class="pin-title">8 FREE AI Video Generators Online</h2>
+            
+            <p class="section-label">Image Prompt (Nano Banana 2)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'prompt-day5')">Copy</button>
+                <pre><code id="prompt-day5">Create a vertical Pinterest pin design, 1000x1500 pixels, dark purple to blue gradient background with subtle motion blur effect. Large white bold text at top reading '8 FREE AI Video Generators' in modern sans-serif font minimum 55pt. Below that, bright yellow text reading 'Create Videos from Text!' in 36pt bold font. Center shows simple flat icons of a video clapperboard with AI sparkle effects, a play button triangle in red, and film strip elements in white and yellow. Bottom section has red banner with white text reading 'No Editing Skills Needed'. Branding: 'TechFreebiesDaily.com' in white 20pt. Futuristic, bold, high-contrast design.</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Title</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'title-day5')">Copy</button>
+                <pre><code id="title-day5">8 Best FREE AI Video Generators Online 2025 | Text to Video Instantly</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Description (dengan Hashtags)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'desc-day5')">Copy</button>
+                <pre><code id="desc-day5">Create amazing videos for FREE using AI! Turn text into professional videos in minutes. Perfect for social media, YouTube, and presentations. #AIVideo #FreeVideoMaker #AIGenerator #VideoCreation #ContentCreator #FreeTools #TextToVideo #AITools #SocialMediaVideo #YouTubeTools</code></pre>
+            </div>
+            
+            <div class="info-box">
+                <strong>Board Recommendation:</strong> Free AI Tools & Apps
+            </div>
+        </div>
+
+        <div class="pin-card">
+            <div class="pin-header">
+                <span class="day-badge">Day 6</span>
+                <span class="keyword-badge">free alternatives to canva</span>
+            </div>
+            <h2 class="pin-title">10 FREE Canva Alternatives for Design</h2>
+            
+            <p class="section-label">Image Prompt (Nano Banana 2)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'prompt-day6')">Copy</button>
+                <pre><code id="prompt-day6">Create a vertical Pinterest pin design, 1000x1500 pixels, bright yellow background with white geometric shapes. Large dark blue bold text at top reading '10 FREE Alternatives' in modern sans-serif font minimum 55pt. Below that, red bold text reading 'Better Than Canva?' in 40pt font with a playful question mark. Center shows simple flat design icons: a color palette, pen tool, and layers symbol in dark blue and red colors. Small design element mockups (social media post frames) scattered artistically. Bottom section has dark blue banner with white text reading 'Professional Design - $0 Cost'. Branding: 'TechFreebiesDaily.com' in dark blue 20pt. Bright, fun, high-contrast design.</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Title</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'title-day6')">Copy</button>
+                <pre><code id="title-day6">10 Best FREE Canva Alternatives 2025 | Professional Design Tools</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Description (dengan Hashtags)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'desc-day6')">Copy</button>
+                <pre><code id="desc-day6">Looking for free Canva alternatives? These 10 powerful design tools offer professional features at zero cost. From Photopea to Figma, create stunning graphics for free! #CanvaAlternative #FreeDesign #GraphicDesign #DesignTools #FreeTools #SocialMediaDesign #Photopea #Figma #CreativeTools #DesignHacks</code></pre>
+            </div>
+            
+            <div class="info-box">
+                <strong>Board Recommendation:</strong> Free Design & Creative Tools
+            </div>
+        </div>
+
+        <div class="pin-card">
+            <div class="pin-header">
+                <span class="day-badge">Day 7</span>
+                <span class="keyword-badge">free ai chatbot no limit</span>
+            </div>
+            <h2 class="pin-title">8 FREE AI Chatbots - No Limits!</h2>
+            
+            <p class="section-label">Image Prompt (Nano Banana 2)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'prompt-day7')">Copy</button>
+                <pre><code id="prompt-day7">Create a vertical Pinterest pin design, 1000x1500 pixels, dark blue background with subtle circuit board pattern. Large white bold text at top reading '8 FREE AI Chatbots' in modern sans-serif font minimum 60pt. Below that, bright green/lime text reading 'Unlimited - No Limits!' in 40pt bold font with an infinity symbol. Center shows simple flat chat bubble icons in white and yellow, with a robot/AI face icon in the center. Sparkle elements suggesting intelligence. Bottom section has red banner with white text reading 'Chat Free Forever'. Branding: 'TechFreebiesDaily.com' in white 20pt. Techy, modern, bold and high-contrast design.</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Title</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'title-day7')">Copy</button>
+                <pre><code id="title-day7">8 Best FREE AI Chatbots with No Limits 2025 | Unlimited AI Chat</code></pre>
+            </div>
+            
+            <p class="section-label">Pin Description (dengan Hashtags)</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'desc-day7')">Copy</button>
+                <pre><code id="desc-day7">Chat with AI for FREE with no usage limits! Google Gemini, Microsoft Copilot, and 6 more powerful chatbots. Perfect for research, writing, and coding. #AIChatbot #FreeChatbot #AIChat #NoLimits #FreeAI #ChatGPT #GoogleGemini #AITools #Productivity #TechFreebies</code></pre>
+            </div>
+            
+            <div class="info-box">
+                <strong>Board Recommendation:</strong> Free AI Tools & Apps
+            </div>
+        </div>
+
+    </div>
+    <script>
+        function copyCode(btn, id) {
+            const code = document.getElementById(id);
+            const text = code.textContent || code.innerText;
+            navigator.clipboard.writeText(text).then(function() {
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(function() {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            }).catch(function() {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(function() {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>
